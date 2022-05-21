@@ -1,7 +1,7 @@
 
 ### 可行性探索
 
-相关代码单独放到新的子目录中，目录名要能够反映内容，例如与fork相关的可以放到``feasibilitiy/fork_test`。
+相关代码**单独放到新的子目录**中，目录名要能够反映内容，例如与fork相关的可以放到`feasibilitiy/fork_test`。
 
 #### 子进程重定向STDIO到管道
 
@@ -17,21 +17,22 @@
 #### C/C++包管理器
 
 1. Make/CMake基础使用
-2. conan，vcpkg...
+2. 推荐使用conan
 
 #### HTTP服务端
 
-1. C/C++的HTTP服务器，支持websocket
+1. C/C++的HTTP服务器库，支持websocket
 2. GET/POST处理
+
+#### websocket连接
+
+1. C/C++的websocket库，同上面HTTP服务
+2. 使用websocket与客户端通信，发送/接收消息，处理断开连接
 
 #### JSON处理
 
 1. C/C++的JSON处理库（rapidjson，nlohmann/json ...）
-
-#### websocket连接
-
-1. C/C++的websocket库（服务端）
-2. 使用websocket与客户端通信，发送/接收消息，处理断开连接
+2. 序列化/反序列化JSON数据
 
 #### MySQL数据库
 
