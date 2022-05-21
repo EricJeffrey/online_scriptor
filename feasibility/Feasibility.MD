@@ -1,7 +1,7 @@
 
 ### 可行性探索
 
-相关代码**单独放到新的子目录**中，目录名要能够反映内容，例如与fork相关的可以放到`feasibilitiy/fork_test`。
+相关代码**单独放到新的子目录**中，目录名要能够反映内容，例如`feasibilitiy/sjf_fork_test`。
 
 #### 子进程重定向STDIO到管道
 
