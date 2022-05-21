@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>任务详情</title>
+</head>
+
+<body>
+    <column>
+        <row>
+            <column padding>
+                <container>
+                    <strong>任务详情</strong>
+                </container>
+                <container>标题</container>
+                <container>状态</container>
+                <container>间隔时间</container>
+                <container>下次运行时间</container>
+                <container>
+                    <button>启动/停止</button>
+                </container>
+                <container>
+                    <button>删除</button>
+                </container>
+            </column>
+            <column padding>
+                <container>
+                    <strong>STDIN</strong>
+                </container>
+                <container>
+                    <textarea name="stdin" id="stdin" cols="30" rows="10"></textarea>
+                </container>
+                <container>
+                    <button>发送</button>
+                </container>
+            </column>
+        </row>
+        <row>
+            <column padding>
+                <container>
+                    <strong>STDOUT</strong>
+                </container>
+                <container block></container>
+            </column>
+            <column padding>
+                <container>
+                    <strong>STDERR</strong>
+                </container>
+                <container block></container>
+            </column>
+        </row>
+    </column>
+</body>
+
+</html>

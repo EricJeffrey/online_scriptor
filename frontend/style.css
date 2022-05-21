@@ -1,0 +1,65 @@
+row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    flex: 1;
+}
+
+column {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+column[padding] {
+    padding: 10px;
+}
+
+container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    align-self: stretch;
+    flex-basis: content;
+}
+
+container[nogrow] {
+    flex-grow: 0;
+}
+
+container[block] {
+    border: 1px #222 solid;
+    min-height: 200px;
+}
+
+list-item {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    padding: 10px;
+    background-color: lightgray;
+    border-radius: 2px;
+}
+
+list-item>* {
+    margin-left: 10px;
+}
+
+list-item:hover {
+    background-color: lightblue;
+}
+
+column>* {
+    margin-bottom: 10px;
+}
+
+container>* {
+    flex-grow: 1;
+}
+
+input,
+button {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}

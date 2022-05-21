@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线脚本执行器</title>
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+    <row>
+        <column style="margin-right: 10px;">
+            <row>
+                <container><input type="text" name="title" id="title" placeholder="标题"></container>
+                <container style="flex: 0;">
+                    <select name="select" id="type">
+                        <option value="Python">Python</option>
+                        <option value="Bash">Bash</option>
+                    </select>
+                </container>
+            </row>
+            <container><textarea name="t" id="tt" cols="30" rows="10"></textarea></container>
+            <container><button>添加</button></container>
+        </column>
+        <column style="margin-left: 10px;">
+            <container><strong>任务列表</strong></container>
+            <list-item>
+                <container style="cursor: pointer;" onclick="window.open('./task.html', '_blank')">
+                    标题
+                </container>
+                <container nogrow>状态</container>
+                <container nogrow><button>启动/停止</button></container>
+                <container nogrow><button>删除</button></container>
+            </list-item>
+        </column>
+    </row>
+</body>
+
+</html>
