@@ -1,21 +1,21 @@
-row {
+.row {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
     flex: 1;
 }
 
-column {
+.column {
     display: flex;
     flex-direction: column;
     flex: 1;
 }
 
-column[padding] {
+.column[padding] {
     padding: 10px;
 }
 
-container {
+.container {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -24,11 +24,11 @@ container {
     flex-basis: content;
 }
 
-container[nogrow] {
+.container[nogrow] {
     flex-grow: 0;
 }
 
-container[block] {
+.container[block] {
     border: 1px #222 solid;
     min-height: 200px;
 }
@@ -50,11 +50,11 @@ list-item:hover {
     background-color: lightblue;
 }
 
-column>* {
+.column>* {
     margin-bottom: 10px;
 }
 
-container>* {
+.container>* {
     flex-grow: 1;
 }
 

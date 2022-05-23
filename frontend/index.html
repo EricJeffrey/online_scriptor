@@ -11,33 +11,33 @@
 </head>
 
 <body>
-    <row>
-        <column style="margin-right: 10px;">
-            <row>
-                <container><input type="text" name="title" id="title" placeholder="标题"></container>
-                <container style="flex: 0;">
+    <div class="row">
+        <div class="column" style="margin-right: 10px;">
+            <div class="row">
+                <div class="container"><input type="text" name="title" id="title" placeholder="标题"></div>
+                <div class="container" style="flex: 0;">
                     <select name="select" id="type">
                         <option value="Python">Python</option>
                         <option value="Bash">Bash</option>
                     </select>
-                </container>
-            </row>
-            <container><textarea name="t" id="tt" cols="30" rows="10"></textarea></container>
-            <container><button>添加</button></container>
-        </column>
-        <column style="margin-left: 10px;">
-            <container><strong>任务列表</strong></container>
+                </div>
+            </div>
+            <div class="container"><textarea name="t" id="tt" cols="30" rows="10"></textarea></div>
+            <div class="container"><button>添加</button></div>
+        </div>
+        <div class="column" style="margin-left: 10px;">
+            <div class="container"><strong>任务列表</strong></div>
             <list-item>
-                <container style="cursor: pointer;" onclick="window.open('./task.html', '_blank')">
+                <div class="container" style="cursor: pointer;" onclick="window.open('./task.html', '_blank')">
                     标题
-                </container>
-                <container nogrow>状态</container>
-                <container nogrow>间隔时间</container>
-                <container nogrow><button>启动/停止</button></container>
-                <container nogrow><button>删除</button></container>
+                </div>
+                <div class="container" nogrow>状态</div>
+                <div class="container" nogrow>间隔时间</div>
+                <div class="container" nogrow><button>启动/停止</button></div>
+                <div class="container" nogrow><button>删除</button></div>
             </list-item>
-        </column>
-    </row>
+        </div>
+    </div>
 </body>
 
 </html>
