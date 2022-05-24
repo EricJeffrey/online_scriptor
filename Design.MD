@@ -72,9 +72,35 @@ ID = (int >= 0)
 3. 数据库 - leveldb
 4. IO事件 - libevent
 
-### 后端模块
+### 后端进程设计
 
-- http/websocket模块：接收http与websocket请求
-- 脚本守护进程：使用管道重定向脚本程序的STDIO，并将STDOUT/ERR写到定长队列
-- 任务管理模块：维护任务状态，启动/停止/删除任务
-- 脚本读写模块：根据请求，添加/移除对某些任务的IO管道的监听
+1. HTTP服务进程
+   1. 初始化需要和 *任务管理进程* 共享的对象
+      1. ws的IO消息管道`pWs`，设置为CLOEXEC
+      2. 任务的操作管道`pTask`，设置为CLOEXEC
+   2. 使用fork创建 *任务管理进程*
+   3. 创建需要和 *websocket线程* 共享的对象
+      1. ws的对象数组`wsMap`（*任务id* -> ws连接）
+   4. 创建 *websocket线程*
+   5. 启动http服务
+      1. 收到websocket请求时，将ws对象保存到`wsMap`
+2. websocket线程 - 与 *HTTP服务进程* 共享`pWs`和`wsMap`
+   1. 从`pWs`读取ws读写的数据
+   2. 根据数据发送到对应`wsMap`对象
+3. 任务管理进程 - 与 *HTTP服务进程* 和 *websocket线程* 共享 `pWs` 和 `pTask`
+   1. 创建libevent管理对象`evManager`，将libevent的fd设置为CLOEXEC
+   2. 创建任务的管道对象`pipeMap`
+   3. 将`pTask`添加到`evManager`中
+   4. 开启事件循环
+      1. 启动任务
+         1. 创建三个管道`pChild`，设置为CLOEXEC，存储到`pipeMap`
+         2. 将三个管道添加到`evManager`
+         3. fork，重定向STDIO到`pChild`，关闭其它管道
+      2. 删除任务
+      3. 停止任务
+      4. 子进程输出
+         1. 封装并发送到`pWs`
+4. 脚本进程 - 执行脚本即可
+
+TODO 一个unixsocket代替三个管道？
+
