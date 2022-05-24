@@ -74,6 +74,9 @@ ID = (int >= 0)
 
 ### 后端进程设计
 
+TODO 更新进程的执行流
+TODO 添加设计的原因
+
 1. HTTP服务进程
    1. 初始化需要和 *任务管理进程* 共享的对象
       1. ws的IO消息管道`pWs`，设置为CLOEXEC
@@ -84,8 +87,9 @@ ID = (int >= 0)
    4. 创建 *websocket线程*
    5. 启动http服务
       1. 收到websocket请求时，将ws对象保存到`wsMap`
+      2. 收到客户端数据，写入到
 2. websocket线程 - 与 *HTTP服务进程* 共享`pWs`和`wsMap`
-   1. 从`pWs`读取ws读写的数据
+   1. 从`pWs`读取ws写的数据
    2. 根据数据发送到对应`wsMap`对象
 3. 任务管理进程 - 与 *HTTP服务进程* 和 *websocket线程* 共享 `pWs` 和 `pTask`
    1. 创建libevent管理对象`evManager`，将libevent的fd设置为CLOEXEC
@@ -101,6 +105,3 @@ ID = (int >= 0)
       4. 子进程输出
          1. 封装并发送到`pWs`
 4. 脚本进程 - 执行脚本即可
-
-TODO 一个unixsocket代替三个管道？
-
