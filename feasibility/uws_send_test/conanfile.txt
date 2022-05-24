@@ -1,0 +1,5 @@
+[requires]
+uwebsockets/20.14.0
+
+[generators]
+cmake

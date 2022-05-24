@@ -8,3 +8,7 @@
 #### 子进程重定向STDIO到管道
  
 主进程创建管道，将子进程的STDIO重定向到管道；然后使用libevent，监控子进程的STDIO，并将输出数据存储到队列，并向子进程的标准输入发送内容。 -- [stdio_redirect_test](stdio_redirect_test/main.c)
+
+#### uwebsocket
+
+主进程使用uwebsocket创建http接口，注册websocket接口。客户端建立连接后子线程每隔一段时间向ws发送数据。
