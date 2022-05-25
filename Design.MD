@@ -74,34 +74,32 @@ ID = (int >= 0)
 
 ### 后端进程设计
 
-TODO 更新进程的执行流
-TODO 添加设计的原因
+参考[process_data_design.png](misc/process_data_design.png)
 
-1. HTTP服务进程
-   1. 初始化需要和 *任务管理进程* 共享的对象
-      1. ws的IO消息管道`pWs`，设置为CLOEXEC
-      2. 任务的操作管道`pTask`，设置为CLOEXEC
-   2. 使用fork创建 *任务管理进程*
-   3. 创建需要和 *websocket线程* 共享的对象
-      1. ws的对象数组`wsMap`（*任务id* -> ws连接）
-   4. 创建 *websocket线程*
-   5. 启动http服务
-      1. 收到websocket请求时，将ws对象保存到`wsMap`
-      2. 收到客户端数据，写入到
-2. websocket线程 - 与 *HTTP服务进程* 共享`pWs`和`wsMap`
-   1. 从`pWs`读取ws写的数据
-   2. 根据数据发送到对应`wsMap`对象
-3. 任务管理进程 - 与 *HTTP服务进程* 和 *websocket线程* 共享 `pWs` 和 `pTask`
-   1. 创建libevent管理对象`evManager`，将libevent的fd设置为CLOEXEC
-   2. 创建任务的管道对象`pipeMap`
-   3. 将`pTask`添加到`evManager`中
-   4. 开启事件循环
-      1. 启动任务
-         1. 创建三个管道`pChild`，设置为CLOEXEC，存储到`pipeMap`
-         2. 将三个管道添加到`evManager`
-         3. fork，重定向STDIO到`pChild`，关闭其它管道
-      2. 删除任务
-      3. 停止任务
-      4. 子进程输出
-         1. 封装并发送到`pWs`
-4. 脚本进程 - 执行脚本即可
+进程
+
+- 主进程，同时也是HTTP服务的进程
+  - ws线程
+- 任务管理进程
+- 脚本执行进程
+
+通信/共享的数据对象
+
+- websocket套接字对象
+  - 共享者：HTTP进程，ws线程
+  - 目的：向ws主动发送数据
+  - 原因：HTTP进程无法主动向ws发送数据，因此使用单独线程执行发送
+- Unix套接字
+  - 共享者：HTTP进程，ws线程，任务管理进程
+  - 目的
+    - HTTP进程 ---- 启动/删除/停止任务 ----> 任务管理进程
+    - HTTP进程 ---- 要发送到任务的数据 ----> 任务管理进程
+    - 任务管理进程 ---- 任务脚本的输出数据 ----> ws线程
+  - 原因：任务管理进程既需要读取数据也需要输出数据，因此使用Unix套接字
+- 三个STDIO管道
+  - 共享者：任务管理进程，脚本进程
+  - 目的：重定向STDIO
+
+
+TODO 更新进程的执行流
+
