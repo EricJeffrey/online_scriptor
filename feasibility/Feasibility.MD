@@ -12,3 +12,13 @@
 #### uwebsocket
 
 主进程使用uwebsocket创建http接口，注册websocket接口。客户端建立连接后子线程每隔一段时间向ws发送数据。 -- [uws_send_test](uws_send_test/main.cpp)
+
+#### Unix数据报套接字
+
+主进程socketpair创建Unix流套接字对，fork，然后使用libevent监听读事件，并在读取到数据后sleep然后echo。
+子进程使用套接字连接到主进程，使用libevent监听读事件，并响应，并创建子线程每隔一秒发送数据。
+
+#### leveldb+json
+
+主进程创建leveldb数据库，创建子进程，然后每隔2s向其中写入json格式化后的字符串，并读取上一次的内容看看是否被修改。
+子进程每隔3s读取并修改一个key对应的内容。
