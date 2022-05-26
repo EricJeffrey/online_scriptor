@@ -1,0 +1,6 @@
+[requires]
+leveldb/1.23
+nlohmann_json/3.10.5
+
+[generators]
+make
