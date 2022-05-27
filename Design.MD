@@ -128,5 +128,65 @@ script_type = Python | Bash
 
 ```
 
+TODO 任务状态页面 每5s/每次执行任务操作后 更新任务列表
 TODO 更新进程的执行流
+
+### 进程执行流
+
+注：除了脚本STDIO的管道外，**所有其它创建的fd都要CLOSE_ON_EXEC**
+
+1. HTTP进程
+   1. 创建 UnixSock1,UnixSock2
+      1. 关闭 UnixSock2
+   2. fork
+      1. 关闭 UnixSock1
+      2. 启动任务管理进程
+   3. 创建任务ID到Websocket的映射taskToWs
+   4. thread
+      1. 启动ws线程
+   5. HTTP事件处理
+      1. 添加任务 - 构造并添加到leveldb
+      2. 启动任务
+         1. 任务ID + 命令:启动 -> UnixSock1
+      3. 停止任务
+         1. 任务ID + 命令:删除 -> UnixSock1
+      4. 删除任务
+         1. 停止任务
+         2. 从leveldb移除
+      5. 任务详情Websocket连接
+         1. onopen
+            1. 存储到Ws映射
+            2. 任务ID + 命令:重定向输出 -> UnixSock1
+         2. onmessage
+            1. 任务ID + message + 命令:输入 -> UnixSock1
+         3. onclose
+            1. 任务ID + 命令:取消重定向 -> UnixSock1
+            2. 从Ws映射中移除
+2. ws线程
+   1. libevent监听UnixSock1的读事件
+      1. 任务ID + 内容 <- UnixSock1
+         1. 根据任务ID获取ws
+         2. ws.send(内容)
+3. 任务管理进程
+   1. 创建libevent对象
+   2. 创建信号量sem与线程通信
+   3. thread -> 任务回收线程
+   4. libevent监听 UnixSock2
+      1. 任务ID + 命令:启动
+         1. 创建三个管道
+         2. 将管道描述符记录到任务信息中
+         3. 将STDOUT/STDERR的读事件添加到libevent
+         4. fork并关闭对端
+            1. exec执行任务
+         5. 更新任务的执行次数
+         6. sem加1，通知任务回收线程
+      2. 任务ID + 命令:删除
+      3. 任务ID + 命令:重定向输出
+      4. 任务ID + 命令:取消重定向
+      5. 任务ID + message + 命令:输入
+      6. 某个管道的输出
+         1. 
+4. 任务回收线程
+   1. 当sem大于1时，使用wait回收进程
+   2. 子进程回收后，更新任务状态和退出码
 
