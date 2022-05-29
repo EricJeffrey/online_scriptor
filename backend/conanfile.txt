@@ -1,0 +1,8 @@
+[requires]
+libevent/2.1.12
+nlohmann_json/3.10.5
+leveldb/1.23
+
+
+[generators]
+make
