@@ -1,82 +1,89 @@
-#include <algorithm>
-#include <any>
-#include <string>
-#include <variant>
 
-#include "leveldb/db.h"
+#include "task_db_mgr.hpp"
 
-#include "task.hpp"
+namespace task_db_mgr {
 
-using std::string, std::max;
+    using std::string, std::max, std::to_string;
+    using task::Task;
 
-using task::Task;
-
-struct DBGuard {
-    leveldb::DB *db;
-    bool opened;
-
-    DBGuard() : db(nullptr), opened(false){};
-    ~DBGuard() { delete db; }
-
-    static void init();
-
-    void open(bool create_if_missing = false) {
-        static const string DB_PATH = "/data/online_scriptor/task_db";
-        leveldb::Options options;
-        options.create_if_missing = create_if_missing;
-        if (!leveldb::DB::Open(options, DB_PATH, &db).ok())
-            throw std::runtime_error("open leveldb failed");
-        opened = true;
+    void DBGuard::init() {
+        DBGuard guard;
+        guard.open(true);
+        guard.writeToDB(DB_KEY_TASK_ID_SET, "[]");
     }
 
-    leveldb::Status writeToDB(const string &key, const string &value) {
-        if (!opened)
-            throw std::runtime_error("db is not opened");
-        return db->Put(leveldb::WriteOptions(), key, value);
+    bool checkInDB(DBGuard &guard, int32_t taskId) {
+        auto idListJson = json::parse(guard.readDB(DB_KEY_TASK_ID_SET));
+        bool found = false;
+        for (size_t i = 0; i < idListJson.size(); i++) {
+            if (idListJson[i].get<int32_t>() == taskId) {
+                idListJson.erase(i);
+                found = true;
+                break;
+            }
+        }
+        return found;
     }
 
-    string readDB(const string &key) {
-        if (!opened)
-            throw std::runtime_error("db is not opened");
-        string value;
-        auto status = db->Get(leveldb::ReadOptions(), key, &value);
-        if (!status.ok())
-            throw std::runtime_error("db read failed");
-        return value;
-    }
-};
+    void createTask(const string &title, const string &scriptCode, int32_t scriptType,
+                    int32_t intervalInSec = 0, int32_t maxTimes = 1) {
+        Task newTask;
+        newTask.title = title;
+        newTask.scriptCode = scriptCode;
+        newTask.scriptType = static_cast<task::ScriptType>(scriptType);
+        newTask.status = task::IDLE;
+        newTask.pid = 0;
+        newTask.intervalInSec = intervalInSec;
+        newTask.maxTimes = maxTimes;
+        newTask.timesExecuted = 0;
+        newTask.exitCode = 0;
+        newTask.exitTimeStamp = 0;
 
-void DBGuard::init() { DBGuard().open(true); }
-
-int32_t getNextTaskId(DBGuard &guard) {
-    static const string DB_KEY_TASK_ID_SET = "taskIdSet";
-
-    auto idListJson = json::parse(guard.readDB(DB_KEY_TASK_ID_SET));
-    int32_t maxId = 0;
-    if (!idListJson.empty()) {
+        DBGuard guard;
+        guard.open();
+        auto idListJson = json::parse(guard.readDB(DB_KEY_TASK_ID_SET));
+        int32_t maxId = 0;
         for (auto &&v : idListJson) {
             maxId = max(maxId, v.get<int32_t>());
         }
+        newTask.id = maxId + 1;
+        idListJson.push_back(newTask.id);
+        guard.writeToDB(DB_KEY_TASK_ID_SET, idListJson.dump());
+        guard.writeToDB(to_string(newTask.id), newTask.toJson().dump());
     }
-    return maxId + 1;
-}
 
-void createTask(const string &title, const string &scriptCode, int32_t scriptType,
-                int32_t intervalInSec = 0, int32_t maxTimes = 1) {
-    Task newTask;
-    newTask.title = title;
-    newTask.scriptCode = scriptCode;
-    newTask.scriptType = static_cast<task::ScriptType>(scriptType);
-    newTask.status = task::IDLE;
-    newTask.pid = 0;
-    newTask.intervalInSec = intervalInSec;
-    newTask.maxTimes = maxTimes;
-    newTask.timesExecuted = 0;
-    newTask.exitCode = 0;
-    newTask.exitTimeStamp = 0;
+    void deleteTask(int32_t taskId) {
+        DBGuard guard;
+        guard.open();
+        auto idListJson = json::parse(guard.readDB(DB_KEY_TASK_ID_SET));
+        bool found = false;
+        for (size_t i = 0; i < idListJson.size(); i++) {
+            if (idListJson[i].get<int32_t>() == taskId) {
+                idListJson.erase(i);
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+            throw std::runtime_error("db delete failed: task " + to_string(taskId) + " not exist");
+        guard.writeToDB(DB_KEY_TASK_ID_SET, idListJson.dump());
+    }
 
-    DBGuard guard;
-    guard.open();
-    newTask.id = getNextTaskId(guard);
-    guard.writeToDB(std::to_string(newTask.id), newTask.toJson().dump());
-}
+    void updateTask(int32_t taskId, const Task &newTask) {
+        DBGuard guard;
+        guard.open();
+        auto idListJson = json::parse(guard.readDB(DB_KEY_TASK_ID_SET));
+        bool found = false;
+        for (size_t i = 0; i < idListJson.size(); i++) {
+            if (idListJson[i].get<int32_t>() == taskId) {
+                idListJson.erase(i);
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+            throw std::runtime_error("db delete failed: task " + to_string(taskId) + " not exist");
+        guard.writeToDB(to_string(taskId), newTask.toJson().dump());
+    }
+
+} // namespace task_db_mgr
