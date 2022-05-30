@@ -22,4 +22,4 @@
 1. wait等待子进程 -> 退出的子进程pid，状态码
 2. 更新数据库中进程的状态 -> 数据库
 
-注：进程退出的时候需要kill掉所有 `prctl(PR_SET_PDEATHSIG)`可以做到
+注：进程退出的时候需要kill掉所有子进程，`prctl(PR_SET_PDEATHSIG)`可以做到
