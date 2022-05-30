@@ -26,3 +26,8 @@
 #### libevent+定时任务
 
 使用libevent实现定时执行的任务
+
+#### libevent+多线程+发送事件
+
+主线程每隔2s向子线程发送一个事件，包含字符串
+子线程使用libevent，设置EVLOOP_NO_EXIT_ON_EMPTY，等待主线程事件，并输出字符串值
