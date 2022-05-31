@@ -37,5 +37,8 @@ $(EXE_FILENAME)         :   $(OBJS)
 *.o                     :   $(SRCS)
 	g++ -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
 
+%.test.out				: %.cpp
+	g++ -g -D TESTING $< $(CXXFLAGS) $(LDFLAGS) $(LDLIBS) -o testing/$@
+
 clean:
 	rm -rf $(OUTPUT_DIR)/$(EXE_FILENAME) *.o

@@ -17,16 +17,16 @@ namespace task {
                   RUNNING,
                   UNINIT };
 
-    const char *TASK_KEY_ID = "id";
-    const char *TASK_KEY_TITLE = "title";
-    const char *TASK_KEY_SCRIPTCODE = "scriptCode";
-    const char *TASK_KEY_SCRIPTTYPE = "scriptType";
-    const char *TASK_KEY_STATUS = "status";
-    const char *TASK_KEY_PID = "pid";
-    const char *TASK_KEY_INTERVALINSEC = "intervalInSec";
-    const char *TASK_KEY_MAXTIMES = "maxTimes";
-    const char *TASK_KEY_EXITCODE = "exitCode";
-    const char *TASK_KEY_EXITTIMESTAMP = "exitTimeStamp";
+    constexpr char *TASK_KEY_ID = "id";
+    constexpr char *TASK_KEY_TITLE = "title";
+    constexpr char *TASK_KEY_SCRIPTCODE = "scriptCode";
+    constexpr char *TASK_KEY_SCRIPTTYPE = "scriptType";
+    constexpr char *TASK_KEY_STATUS = "status";
+    constexpr char *TASK_KEY_PID = "pid";
+    constexpr char *TASK_KEY_INTERVALINSEC = "intervalInSec";
+    constexpr char *TASK_KEY_MAXTIMES = "maxTimes";
+    constexpr char *TASK_KEY_EXITCODE = "exitCode";
+    constexpr char *TASK_KEY_EXITTIMESTAMP = "exitTimeStamp";
 
     struct Task {
         int32_t id;
