@@ -13,7 +13,6 @@
 
 #include "task.hpp"
 
-using task::Task;
 using std::string;
 
 struct TaskInfo {

@@ -18,7 +18,6 @@
 #include "task_mgr.hpp"
 
 using std::string, std::unordered_map, std::ofstream;
-using task::Task;
 
 struct TaskInfo {
     int32_t taskId;
@@ -131,9 +130,9 @@ void startTask(const Task &task) {
         }
     }
     StartScriptRes res;
-    if (task.scriptType == task::ScriptType::PYTHON)
+    if (task.scriptType == TaskScriptType::PYTHON)
         res = startPyScriptWithIORedir(filePath, fdsToClose);
-    if (task.scriptType == task::ScriptType::BASH)
+    if (task.scriptType == TaskScriptType::BASH)
         res = startBashScriptWithIORedir(filePath, fdsToClose);
 
     // update
@@ -167,7 +166,7 @@ void recycleChildInfo(int32_t taskId, int pid, int exitCode) {}
 // ----- interface -----
 
 void notifyStartScript(const Task &task) {
-    if (task.scriptType != task::ScriptType::PYTHON && task.scriptType != task::ScriptType::BASH)
+    if (task.scriptType != TaskScriptType::PYTHON && task.scriptType != TaskScriptType::BASH)
         return;
     ScriptMgrMsg *msg = new ScriptMgrMsg(); // 生命周期 evtimer_new -> eventCallback
     msg->msgCode = MsgCode::START;
