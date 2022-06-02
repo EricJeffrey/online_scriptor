@@ -11,7 +11,6 @@
 
 using std::string, std::max, std::to_string;
 
-
 // RAII Guard of leveldb::DB, call DBGuard::init before use!
 struct DBGuard {
     leveldb::DB *db;

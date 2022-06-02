@@ -28,7 +28,7 @@ bool filePathOk(const string &filePath) {
  * @param preWork 进程创建后需要预先执行的函数
  * @return StartScriptRes 返回结果，包括重定向后的三个fd和子进程的pid
  */
-StartScriptRes startScriptWithIORedir(const string &filePath, int32_t type, const vector<int> &fdsToClose) {
+static StartScriptRes startScriptWithIORedir(const string &filePath, int32_t type, const vector<int> &fdsToClose) {
     if (filePath.empty() || !filePathOk(filePath)) {
         throw runtime_error("startScriptWithIORedir: invalid filePath or type");
     }
@@ -80,7 +80,7 @@ StartScriptRes startScriptWithIORedir(const string &filePath, int32_t type, cons
  * @param preWork 进程创建后需要预先执行的函数
  * @return StartScriptRes 返回结果，包括重定向后的三个fd和子进程的pid
  */
-StartScriptRes startPyScriptWithIORedir(const string &filePath, const vector<int> &fdsToClose) {
+StartScriptRes ScriptHelper::startPyScriptWithIORedir(const string &filePath, const vector<int> &fdsToClose) {
     return startScriptWithIORedir(filePath, INTERPRETOR_TYPE_PYTHON, fdsToClose);
 }
 
@@ -91,7 +91,7 @@ StartScriptRes startPyScriptWithIORedir(const string &filePath, const vector<int
  * @param preWork 进程创建后需要预先执行的函数
  * @return StartScriptRes 返回结果，包括重定向后的三个fd和子进程的pid
  */
-StartScriptRes startBashScriptWithIORedir(const string &filePath, const vector<int> &fdsToClose) {
+StartScriptRes ScriptHelper::startBashScriptWithIORedir(const string &filePath, const vector<int> &fdsToClose) {
     return startScriptWithIORedir(filePath, INTERPRETOR_TYPE_BASH, fdsToClose);
 }
 
@@ -101,7 +101,7 @@ StartScriptRes startBashScriptWithIORedir(const string &filePath, const vector<i
 int main(int argc, char const *argv[]) {
     printf("parent, starting script\n");
     string x = "ok just do something";
-    auto res = startPyScriptWithIORedir("/home/sjf/coding/online_scriptor/backend/testing/foo.py", {});
+    auto res = ScriptHelper::startPyScriptWithIORedir("/home/sjf/coding/online_scriptor/backend/testing/foo.py", {});
     printf("child started, pid: %d\n", res.childPid);
     auto thr = std::thread([&res]() {
         char buf[20] = {};

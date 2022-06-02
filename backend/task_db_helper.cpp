@@ -1,11 +1,11 @@
-#include "task_db_helper.hpp"
 
+#include "task_db_helper.hpp"
 #include "db_guard.hpp"
 
 constexpr char *DB_KEY_TASK_ID_SET = "taskIdSet";
 using std::string, std::max, std::to_string;
 
-bool checkInDB(DBGuard &guard, int32_t taskId) {
+static bool isInDB(DBGuard &guard, int32_t taskId) {
     auto idListJson = json::parse(guard.readDB(DB_KEY_TASK_ID_SET));
     bool found = false;
     for (size_t i = 0; i < idListJson.size(); i++) {
@@ -18,8 +18,8 @@ bool checkInDB(DBGuard &guard, int32_t taskId) {
     return found;
 }
 
-void createTask(const string &title, const string &scriptCode, int32_t scriptType,
-                int32_t intervalInSec = 0, int32_t maxTimes = 1) {
+void TaskDBHelper::createTask(const string &title, const string &scriptCode, int32_t scriptType,
+                              int32_t intervalInSec = 0, int32_t maxTimes = 1) {
     Task newTask;
     newTask.title = title;
     newTask.scriptCode = scriptCode;
@@ -45,7 +45,17 @@ void createTask(const string &title, const string &scriptCode, int32_t scriptTyp
     guard.writeToDB(to_string(newTask.id), newTask.toJson().dump());
 }
 
-void deleteTask(int32_t taskId) {
+Task TaskDBHelper::getTask(int32_t taskId) {
+    DBGuard guard;
+    guard.open();
+    if (isInDB(guard, taskId)) {
+        return Task(json::parse(guard.readDB(to_string(taskId))));
+    } else {
+        throw std::runtime_error("get task failed, task not found");
+    }
+}
+
+void TaskDBHelper::deleteTask(int32_t taskId) {
     DBGuard guard;
     guard.open();
     auto idListJson = json::parse(guard.readDB(DB_KEY_TASK_ID_SET));
@@ -62,7 +72,7 @@ void deleteTask(int32_t taskId) {
     guard.writeToDB(DB_KEY_TASK_ID_SET, idListJson.dump());
 }
 
-void updateTask(int32_t taskId, const Task &newTask) {
+void TaskDBHelper::updateTask(int32_t taskId, const Task &newTask) {
     DBGuard guard;
     guard.open();
     auto idListJson = json::parse(guard.readDB(DB_KEY_TASK_ID_SET));

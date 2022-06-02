@@ -131,9 +131,9 @@ void startTask(const Task &task) {
     }
     StartScriptRes res;
     if (task.scriptType == TaskScriptType::PYTHON)
-        res = startPyScriptWithIORedir(filePath, fdsToClose);
+        res = ScriptHelper::startPyScriptWithIORedir(filePath, fdsToClose);
     if (task.scriptType == TaskScriptType::BASH)
-        res = startBashScriptWithIORedir(filePath, fdsToClose);
+        res = ScriptHelper::startBashScriptWithIORedir(filePath, fdsToClose);
 
     // update
     taskIdOfPid[res.childPid] = task.id;

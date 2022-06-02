@@ -15,8 +15,9 @@ struct StartScriptRes {
     pid_t childPid;
 };
 
-StartScriptRes startPyScriptWithIORedir(const string &filePath, const vector<int> &fdsToClose);
-
-StartScriptRes startBashScriptWithIORedir(const string &filePath, const vector<int> &fdsToClose);
+struct ScriptHelper {
+    static StartScriptRes startPyScriptWithIORedir(const string &filePath, const vector<int> &fdsToClose);
+    static StartScriptRes startBashScriptWithIORedir(const string &filePath, const vector<int> &fdsToClose);
+};
 
 #endif // SCRIPT_HELPER

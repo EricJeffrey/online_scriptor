@@ -9,21 +9,21 @@
 
 ```
 CommandMsg
-    enum commandType
-    int taskId
-    string title
-    string content # 任务代码 或 添加到输入管道的数据
+   enum commandType
+   int taskId
+   string title
+   string content # 任务代码 或 添加到输入管道的数据
 
 CommandRes
-    bool ok
-    int taskId
-    pid_t pid
-    Task task
+   bool ok
+   int taskId
+   pid_t pid
+   Task task
 
 IOMsg
-    enum cmd
-    int fd
-    bytes buf
+   enum cmd
+   int fd
+   bytes buf
 ```
 
 ### 子模块
@@ -42,45 +42,42 @@ IOMsg
    2. `runningTaskHelper.getFdsByPid(pid)`获取文件描述符
    3. `iomgr.removeFd(stdin, stdout, stderr)`通知移除fds
    4. `runningTaskHelper.removeByPid(pid)`移除进程fd
-   5. `dbhelper.updateTask()`更新退出码
+   5. `dbHelper.updateTask()`更新退出码
    6. 返回
 3. cmdSock事件
    1. `bufferHelper.tryFillCmdMsg()`解析为CmdMsg对象
    2. 根据`cmdType`分发处理函数
    3. 返回分发后的处理结果
 4. cmd添加任务
-   1. `dbhelper.addTask(type, code)`
+   1. `dbHelper.addTask(type, code)`
    2. 返回
 5. cmd启动任务
-   1. `dbhelper.getTaskInfo(taskId)`获取任务信息
+   1. `dbHelper.getTaskInfo(taskId)`获取任务信息
    2. `scripthelper.startTask(taskId, type, script)`启动脚本，得到`ok, pid, iofds[3]`
    3. `iomgr.addFd(stdin, stdout, stderr)`添加脚本的描述符到IO重定向中
    4. `runningTaskHelper.add(taskId, pid, fds)`保存信息
-   5. `dbhelper.updateTask()`
+   5. `dbHelper.updateTask()`
    6. 返回
 6. cmd停止任务
-   1. `dbhelper.getTaskInfo(taskId)`获取任务pid
+   1. `dbHelper.getTaskInfo(taskId)`获取任务pid
    2. `kill(SIGKILL, pid)`
    3. 返回
 7. cmd删除任务
-   1. `dbhelper.getTaskInfo(taskId)`确定任务是否运行
+   1. `runningTaskHelper.isTaskRunning(taskId)`确定任务是否运行
    2. 如果在运行 - cmd停止任务
-   3. `dbhelper.removeTask(taskId)`
+   3. `dbHelper.removeTask(taskId)`
    4. 返回
 8. cmd重定向IO
-   1. `dbhelper.getTaskInfo(taskId)`确定任务是否运行
+   1. `runningTaskHelper.isTaskRunning(taskId)`确定任务是否运行
    2. `runningTaskHelper.getFdsByTask(taskId)`获取fd
    3. `iomgr.startRedirect(fds[3])`通知重定向数据
 9. cmd停止重定向
-   1. `dbhelper.getTaskInfo(taskId)`确定任务是否运行
+   1. `runningTaskHelper.isTaskRunning(taskId)`确定任务是否运行
    2. `runningTaskHelper.getFdsByTask(taskId)`获取fd
    3. `iomgr.stopRedirect(fds[3])`通知重定向数据
 10. cmd添加到任务输入
     1.  `runningTaskHelper.getFdsByTask(taskId)`获取标准输入fd
     2.  `iomgr.addToStdin(fd, content)`添加到输入
-11. cmd获取任务的标准输入
-    1.  `runningTaskHelper.getFdsByTask(taskId)`获取fd
-    2.  返回
 
 #### IO重定向流程 - IOMgr
 
@@ -101,10 +98,73 @@ IOMsg
    1. `taskFdHelper.setDoRedirect(fd, false)`
 6. 外部接口 - addToStdin
    1. `write(stdinFd, buf, buf.size)`写入到用户的输入数据，若会阻塞则丢弃
-7. 脚本输出fd
+7. 脚本fd的输出
    1. 封装为`IOMsg`格式的JSON数据并字符串化`msgJson`
    2. `taskFdHelper.getDoRedirect(fd)`判断是否转发
    3. 若是，`taskFdHelper.getBev(fd)`，然后`bufferevent_write(ioSoc, msgJson.data, msgJson.size)`
+
+#### 对象接口
+
+```
+CmdMgr {
+   start(cmdSock)
+   onSIGCHILD()
+   onCmdSockRead()
+   onCmdSockEvent()
+   addTask()
+   startTask()
+   stopTask()
+   deleteTask()
+   enableIORedirect(taskId)
+   disableIORedirect(taskId)
+   addToTaskSTDIN()
+}
+
+IOMgr {
+   start(ioSock)
+   addFd(fds)
+   removeFd(fds)
+   enableRedirect(fds)
+   disableRedirect(fds)
+   addToStdin(fd, buf, size)
+   onFdOutput()
+}
+
+bufferHelper {
+   tryFillCmdMsg(buf, n)
+   tryFillIOMsg(buf, n)
+}
+
+runningTaskHelper {
+   add(taskId, pid, fds)
+   isTaskRunning(taskId)
+   getFdsByPid(pid)
+   getFdsByTask(taskId)
+   removeByPid(pid)
+}
+
+dbHelper {
+   addTask(task)
+   updateTask(taskId, newTask)
+   deleteTask(taskId)
+   getTask(taskId)
+}
+
+scriptHelper {
+   startTask(taskId, type, script)
+}
+
+taskIOFdHelper {
+   add(fd)
+   setBufferEv(bev)
+   remove(fd)
+   enableRedirect(fd)
+   disableRedirect(fd)
+   isRedirectEnabled(fd)
+   getBufferEv(fd)
+}
+
+```
 
 ### 注意事项
 
