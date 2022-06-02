@@ -1,9 +1,11 @@
-#include "io_mgr.hpp"
 #include "event2/buffer.h"
 #include "event2/bufferevent.h"
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "event2/util.h"
+
+#include "io_mgr.hpp"
+
 #include <cassert>
 #include <cstring>
 #include <errno.h>
@@ -13,19 +15,60 @@ int IOMgr::ioSock = -1;
 event_base *IOMgr::base = nullptr;
 TaskIOFdHelper IOMgr::taskIOFdHelper;
 
-void IOMgr::start(int unixSock) {
-    base = event_base_new();
-    assert(base != nullptr);
-    assert(event_base_loop(base, EVLOOP_NO_EXIT_ON_EMPTY) != -1);
+void onIOSockEventCb(bufferevent *bev, short events, void *arg) {
+    if (events & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) {
+        printf("Error on IO Sock, shutting down IOMgr\n");
+        bufferevent_free(bev);
+        event_base_loopexit((event_base *)(arg), nullptr);
+        IOMgr::base = nullptr;
+    }
 }
 
-void onOutFdReadCb(bufferevent *bev, void *arg) {}
+void IOMgr::start(int ioSock) {
+    evutil_make_socket_closeonexec(ioSock);
+    IOMgr::ioSock = ioSock;
+    IOMgr::base = event_base_new();
+    assert(base != nullptr);
+    IOMgr::bevIOSock = bufferevent_socket_new(IOMgr::base, ioSock, BEV_OPT_CLOSE_ON_FREE);
+    assert(IOMgr::bevIOSock != nullptr);
+    bufferevent_setcb(IOMgr::bevIOSock, nullptr, nullptr, onIOSockEventCb, IOMgr::base);
+    bufferevent_enable(IOMgr::bevIOSock, EV_WRITE);
+    int res = event_base_loop(base, EVLOOP_NO_EXIT_ON_EMPTY);
+    assert(res != -1);
+}
 
-void onOutFdEventCb(bufferevent *bev, short events, void *arg) {}
+void fdReadDelegate(bufferevent *bev, int outOrError) {
+    string tmpContent;
+    tmpContent.reserve(BUFSIZ);
+    char buf[BUFSIZ + 1];
+    size_t n;
+    while ((n = bufferevent_read(bev, buf, BUFSIZ)) != 0) {
+        tmpContent.append(buf, n);
+    }
+    int fd = bufferevent_getfd(bev);
+    assert(fd != -1);
+    string data =
+        IODataMsg{
+            .taskId = IOMgr::taskIOFdHelper.getTaskId(fd),
+            .outOrErr = outOrError,
+            .content = std::move(tmpContent),
+        }
+            .toJson();
+    int32_t res = bufferevent_write(IOMgr::bevIOSock, data.data(), data.size());
+    if (res == -1)
+        printf("IOMgr: bufferevent_write failed! ioSock is probably dead\n");
+}
 
-void onErrFdReadCb(bufferevent *bev, void *arg) {}
+void onOutFdReadCb(bufferevent *bev, void *arg) { fdReadDelegate(bev, 0); }
 
-void onErrFdEventCb(bufferevent *bev, short events, void *arg) {}
+void onFdEventCb(bufferevent *bev, short events, void *arg) {
+    if (events & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) {
+        printf("IOMgr: EOF or ERROR on fd %d\n", bufferevent_getfd(bev));
+        bufferevent_free(bev);
+    }
+}
+
+void onErrFdReadCb(bufferevent *bev, void *arg) { fdReadDelegate(bev, 1); }
 
 void onMsgEventCb(evutil_socket_t, short events, void *arg) {
     IOEventMsg *msg = (IOEventMsg *)(arg);
@@ -38,7 +81,7 @@ void onMsgEventCb(evutil_socket_t, short events, void *arg) {
             bev = bufferevent_socket_new(IOMgr::base, msg->fd, BEV_OPT_CLOSE_ON_FREE);
             assert(bev != nullptr);
             bufferevent_setcb(bev, (msg->fdType == 1 ? onOutFdReadCb : onErrFdReadCb), nullptr,
-                              (msg->fdType == 1 ? onOutFdEventCb : onErrFdEventCb), IOMgr::base);
+                              onFdEventCb, IOMgr::base);
             int res = bufferevent_enable(bev, EV_READ);
             assert(res != -1);
         }
@@ -85,6 +128,8 @@ void onMsgEventCb(evutil_socket_t, short events, void *arg) {
 }
 
 inline void addMsgEvent(IOEventMsg *msg) {
+    if (IOMgr::base == nullptr)
+        throw runtime_error("addMsgEvent error, event base has been shut down");
     event *ev = event_new(IOMgr::base, -1, EV_TIMEOUT, onMsgEventCb, msg);
     assert(ev != nullptr);
     msg->ev = ev;

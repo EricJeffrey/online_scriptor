@@ -3,12 +3,14 @@
 
 #include "event2/buffer.h"
 #include "event2/bufferevent.h"
+#include "nlohmann/json.hpp"
 
 #include <array>
 #include <map>
 #include <stdexcept>
 #include <string>
 
+using nlohmann::json;
 using std::array, std::string;
 using std::map, std::runtime_error;
 
@@ -18,6 +20,7 @@ struct IOMgr {
     static int ioSock;
     static event_base *base;
     static TaskIOFdHelper taskIOFdHelper;
+    static bufferevent *bevIOSock;
 
     static void start(int ioSock);
     static void addFds(int32_t taskId, array<int, 3> fds);
@@ -37,7 +40,11 @@ enum IOMsgType {
 
 struct IODataMsg {
     int32_t taskId;
-    string buf;
+    int32_t outOrErr;
+    string content;
+
+    string toJson() const;
+    static IODataMsg parse(const json &);
 };
 
 struct IOEventMsg {
