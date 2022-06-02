@@ -5,27 +5,6 @@
 1. CommandSock - 同步，传递用户的 添加/启动/停止/删除/获取详细信息/重定向IO/取消重定向IO/添加到任务输入 命令到任务管理模块
 2. IOSock - 异步，传递脚本的输出内容
 
-### 数据格式
-
-```
-CommandMsg
-   enum commandType
-   int taskId
-   string title
-   string content # 任务代码 或 添加到输入管道的数据
-
-CommandRes
-   bool ok
-   int taskId
-   pid_t pid
-   Task task
-
-IOMsg
-   enum cmd
-   int fd
-   bytes buf
-```
-
 ### 子模块
 
 1. 命令处理 - 处理任务相关的命令 以及 脚本进程退出的事件
@@ -103,9 +82,31 @@ IOMsg
    2. `taskFdHelper.getDoRedirect(fd)`判断是否转发
    3. 若是，`taskFdHelper.getBev(fd)`，然后`bufferevent_write(ioSoc, msgJson.data, msgJson.size)`
 
-#### 对象接口
+#### 数据格式与接口
 
 ```
+
+CommandMsg
+    cmdType;
+    taskId;
+    title;
+    scriptCode;
+    scriptType;
+    interval;
+    maxTimes;
+    stdinContent;
+
+CommandRes
+   bool ok
+   int taskId
+   pid_t pid
+   Task task
+
+IOMsg
+   enum cmd
+   int fd
+   bytes buf
+
 CmdMgr {
    start(cmdSock)
    onSIGCHILD()
@@ -156,7 +157,7 @@ scriptHelper {
 
 taskIOFdHelper {
    add(fd)
-   setBufferEv(bev)
+   setBufferEv(fd, bev)
    remove(fd)
    enableRedirect(fd)
    disableRedirect(fd)
