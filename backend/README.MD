@@ -102,7 +102,7 @@ CommandRes
    pid_t pid
    Task task
 
-IOMsg
+IOEventMsg
    enum cmd
    int fd
    bytes buf
@@ -123,8 +123,8 @@ CmdMgr {
 
 IOMgr {
    start(ioSock)
-   addFd(fds)
-   removeFd(fds)
+   addFds(taskId, fds)
+   removeFds(taskId, fds)
    enableRedirect(fds)
    disableRedirect(fds)
    addToStdin(fd, buf, size)
@@ -156,13 +156,13 @@ scriptHelper {
 }
 
 taskIOFdHelper {
-   add(fd)
-   setBufferEv(fd, bev)
+   add(taskId, fd)
    remove(fd)
    enableRedirect(fd)
    disableRedirect(fd)
    isRedirectEnabled(fd)
    getBufferEv(fd)
+   getTaskId(fd)
 }
 
 ```

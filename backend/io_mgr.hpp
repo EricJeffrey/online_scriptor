@@ -20,7 +20,7 @@ struct IOMgr {
     static TaskIOFdHelper taskIOFdHelper;
 
     static void start(int ioSock);
-    static void addFds(array<int, 3> fds);
+    static void addFds(int32_t taskId, array<int, 3> fds);
     static void removeFds(array<int, 3> fds);
     static void enableRedirect(array<int, 2> fds);
     static void disableRedirect(array<int, 2> fds);
@@ -35,36 +35,47 @@ enum IOMsgType {
     PUT_DATA_TO_FD,
 };
 
-struct IOMsg {
-    IOMsgType msgType;
-    int fd;
+struct IODataMsg {
+    int32_t taskId;
     string buf;
+};
+
+struct IOEventMsg {
+    event *ev;
+    IOMsgType msgType;
+    int32_t taskId;
+    int fd;
+    // 0 stdin, 1 stdout, 2 stderr
+    int32_t fdType;
+    string content;
 };
 
 struct TaskIOFdHelper {
     struct IOData {
+        int32_t taskId;
         int fd;
         bool redirectEnabled;
         bufferevent *bev;
 
-        IOData(int fd, bufferevent *bev) : fd(fd), redirectEnabled(false), bev(bev) {}
+        IOData(int32_t taskId, int fd, bufferevent *bev)
+            : taskId(taskId), fd(fd), redirectEnabled(false), bev(bev) {}
     };
 
     map<int, IOData> fd2IOData;
 
+    // check if fd is inside, throw if not
     void throwIfNotIn(int fd) {
         if (!fd2IOData.contains(fd))
             throw runtime_error("taskIOFdHelper: fd not found");
     }
 
-    void add(int fd, bufferevent *bev) {
+    void add(int32_t taskId, int fd, bufferevent *bev) {
         if (fd2IOData.contains(fd))
             throw runtime_error("taskIOFdHelper: fd not found");
-        fd2IOData[fd] = IOData(fd, bev);
+        fd2IOData[fd] = IOData(taskId, fd, bev);
     }
 
     bufferevent *removeFd(int fd) {
-        throwIfNotIn(fd);
         bufferevent *bev = fd2IOData[fd].bev;
         fd2IOData.erase(fd);
         return bev;
@@ -85,6 +96,11 @@ struct TaskIOFdHelper {
     bufferevent *getBufferEv(int fd) {
         throwIfNotIn(fd);
         return fd2IOData[fd].bev;
+    }
+
+    int32_t getTaskId(int fd) {
+        throwIfNotIn(fd);
+        return fd2IOData[fd].taskId;
     }
 };
 
