@@ -1,8 +1,8 @@
 #include "io_mgr.hpp"
 
-constexpr char *IODATAMSG_KEY_TASK_ID = "taskId";
-constexpr char *IODATAMSG_KEY_CONTENT = "content";
-constexpr char *IODATAMSG_KEY_OUT_OR_ERROR = "outOrError";
+constexpr char IODATAMSG_KEY_TASK_ID[] = "taskId";
+constexpr char IODATAMSG_KEY_CONTENT[] = "content";
+constexpr char IODATAMSG_KEY_OUT_OR_ERROR[] = "outOrError";
 
 string IODataMsg::toJson() const {
     return json({

@@ -3,6 +3,7 @@
 
 #include "event2/buffer.h"
 #include "event2/bufferevent.h"
+#include "event2/event.h"
 #include "nlohmann/json.hpp"
 
 #include <array>
@@ -60,55 +61,56 @@ struct IOEventMsg {
 
 struct TaskIOFdHelper {
     struct IOData {
-        int32_t taskId;
-        int fd;
-        bool redirectEnabled;
-        bufferevent *bev;
+        int32_t mTaskId;
+        int mFd;
+        bool mRedirectEnabled;
+        bufferevent *mBev;
 
+        IOData() : mTaskId(0), mFd(0), mRedirectEnabled(false), mBev(nullptr) {}
         IOData(int32_t taskId, int fd, bufferevent *bev)
-            : taskId(taskId), fd(fd), redirectEnabled(false), bev(bev) {}
+            : mTaskId(taskId), mFd(fd), mRedirectEnabled(false), mBev(bev) {}
     };
 
     map<int, IOData> fd2IOData;
 
     // check if fd is inside, throw if not
     void throwIfNotIn(int fd) {
-        if (!fd2IOData.contains(fd))
+        if (fd2IOData.find(fd) == fd2IOData.end())
             throw runtime_error("taskIOFdHelper: fd not found");
     }
 
     void add(int32_t taskId, int fd, bufferevent *bev) {
-        if (fd2IOData.contains(fd))
-            throw runtime_error("taskIOFdHelper: fd not found");
+        if (fd2IOData.find(fd) != fd2IOData.end())
+            throw runtime_error("taskIOFdHelper: fd already exists");
         fd2IOData[fd] = IOData(taskId, fd, bev);
     }
 
     bufferevent *removeFd(int fd) {
-        bufferevent *bev = fd2IOData[fd].bev;
+        bufferevent *bev = fd2IOData[fd].mBev;
         fd2IOData.erase(fd);
         return bev;
     }
 
     void setRedirect(int fd, bool on) {
         throwIfNotIn(fd);
-        fd2IOData[fd].redirectEnabled = on;
+        fd2IOData[fd].mRedirectEnabled = on;
     }
     void enableRedirect(int fd) { setRedirect(fd, true); }
     void disableRedirect(int fd) { setRedirect(fd, false); }
 
     bool isRedirectEnabled(int fd) {
         throwIfNotIn(fd);
-        return fd2IOData[fd].redirectEnabled;
+        return fd2IOData[fd].mRedirectEnabled;
     }
 
     bufferevent *getBufferEv(int fd) {
         throwIfNotIn(fd);
-        return fd2IOData[fd].bev;
+        return fd2IOData[fd].mBev;
     }
 
     int32_t getTaskId(int fd) {
         throwIfNotIn(fd);
-        return fd2IOData[fd].taskId;
+        return fd2IOData[fd].mTaskId;
     }
 };
 

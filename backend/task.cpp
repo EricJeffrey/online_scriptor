@@ -1,16 +1,16 @@
 
 #include "task.hpp"
 
-constexpr char *TASK_KEY_ID = "id";
-constexpr char *TASK_KEY_TITLE = "title";
-constexpr char *TASK_KEY_SCRIPTCODE = "scriptCode";
-constexpr char *TASK_KEY_SCRIPTTYPE = "scriptType";
-constexpr char *TASK_KEY_STATUS = "status";
-constexpr char *TASK_KEY_PID = "pid";
-constexpr char *TASK_KEY_INTERVALINSEC = "intervalInSec";
-constexpr char *TASK_KEY_MAXTIMES = "maxTimes";
-constexpr char *TASK_KEY_EXITCODE = "exitCode";
-constexpr char *TASK_KEY_EXITTIMESTAMP = "exitTimeStamp";
+constexpr char TASK_KEY_ID[] = "id";
+constexpr char TASK_KEY_TITLE[] = "title";
+constexpr char TASK_KEY_SCRIPTCODE[] = "scriptCode";
+constexpr char TASK_KEY_SCRIPTTYPE[] = "scriptType";
+constexpr char TASK_KEY_STATUS[] = "status";
+constexpr char TASK_KEY_PID[] = "pid";
+constexpr char TASK_KEY_INTERVALINSEC[] = "intervalInSec";
+constexpr char TASK_KEY_MAXTIMES[] = "maxTimes";
+constexpr char TASK_KEY_EXITCODE[] = "exitCode";
+constexpr char TASK_KEY_EXITTIMESTAMP[] = "exitTimeStamp";
 
 Task::Task(json data) {
     try {
@@ -24,7 +24,7 @@ Task::Task(json data) {
         maxTimes = data[TASK_KEY_MAXTIMES].get<int32_t>();
         exitCode = data[TASK_KEY_EXITCODE].get<int32_t>();
         exitTimeStamp = data[TASK_KEY_EXITTIMESTAMP].get<int64_t>();
-    } catch (json::exception) {
+    } catch (const json::exception &) {
         throw std::runtime_error("create task from json failed");
     }
 }

@@ -94,28 +94,3 @@ StartScriptRes ScriptHelper::startPyScriptWithIORedir(const string &filePath, co
 StartScriptRes ScriptHelper::startBashScriptWithIORedir(const string &filePath, const vector<int> &fdsToClose) {
     return startScriptWithIORedir(filePath, INTERPRETOR_TYPE_BASH, fdsToClose);
 }
-
-#if defined(TESTING)
-
-#include <thread>
-int main(int argc, char const *argv[]) {
-    printf("parent, starting script\n");
-    string x = "ok just do something";
-    auto res = ScriptHelper::startPyScriptWithIORedir("/home/sjf/coding/online_scriptor/backend/testing/foo.py", {});
-    printf("child started, pid: %d\n", res.childPid);
-    auto thr = std::thread([&res]() {
-        char buf[20] = {};
-        int32_t n = 0;
-        while ((n = read(res.fdStdout, buf, sizeof(buf) - 1)) > 0) {
-            printf("parent, child output: %s\n", buf);
-            memset(buf, 0, sizeof(buf));
-        }
-    });
-    write(res.fdStdin, "ok\n", 3);
-    thr.join();
-    printf("parent, exiting");
-
-    return 0;
-}
-
-#endif // TESTING

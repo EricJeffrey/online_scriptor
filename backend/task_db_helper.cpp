@@ -26,7 +26,7 @@ static bool isInDB(DBGuard &guard, int32_t taskId) {
 }
 
 void TaskDBHelper::createTask(const string &title, const string &scriptCode, int32_t scriptType,
-                              int32_t intervalInSec = 0, int32_t maxTimes = 1) {
+                              int32_t intervalInSec, int32_t maxTimes) {
     Task newTask;
     newTask.title = title;
     newTask.scriptCode = scriptCode;

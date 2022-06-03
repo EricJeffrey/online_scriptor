@@ -24,7 +24,7 @@ struct DBGuard {
             throw std::runtime_error("db is not opened");
     }
 
-    void open(bool create_if_missing = false);
+    void open(bool create_if_missing=false);
     leveldb::Status writeToDB(const string &key, const string &value);
     string readDB(const string &key);
     void deleteFromDB(const string &key);

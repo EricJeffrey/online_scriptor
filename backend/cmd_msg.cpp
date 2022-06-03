@@ -2,14 +2,14 @@
 
 using std::runtime_error;
 
-constexpr char *CMDMSG_KEY_CMDTYPE = "cmdType";
-constexpr char *CMDMSG_KEY_TASKID = "taskId";
-constexpr char *CMDMSG_KEY_STDINCONTENT = "stdinContent";
-constexpr char *CMDMSG_KEY_TITLE = "title";
-constexpr char *CMDMSG_KEY_SCRIPTCODE = "scriptCode";
-constexpr char *CMDMSG_KEY_SCRIPTTYPE = "scriptType";
-constexpr char *CMDMSG_KEY_INTERVAL = "interval";
-constexpr char *CMDMSG_KEY_MAXTIMES = "maxTimes";
+constexpr char CMDMSG_KEY_CMDTYPE[] = "cmdType";
+constexpr char CMDMSG_KEY_TASKID[] = "taskId";
+constexpr char CMDMSG_KEY_STDINCONTENT[] = "stdinContent";
+constexpr char CMDMSG_KEY_TITLE[] = "title";
+constexpr char CMDMSG_KEY_SCRIPTCODE[] = "scriptCode";
+constexpr char CMDMSG_KEY_SCRIPTTYPE[] = "scriptType";
+constexpr char CMDMSG_KEY_INTERVAL[] = "interval";
+constexpr char CMDMSG_KEY_MAXTIMES[] = "maxTimes";
 
 string CmdMsg::toJsonStr() {
     return json({

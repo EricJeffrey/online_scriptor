@@ -26,12 +26,12 @@ void onIOSockEventCb(bufferevent *bev, short events, void *arg) {
     }
 }
 
-void IOMgr::start(int ioSock) {
-    evutil_make_socket_closeonexec(ioSock);
-    IOMgr::ioSock = ioSock;
+void IOMgr::start(int sock) {
+    evutil_make_socket_closeonexec(sock);
+    IOMgr::ioSock = sock;
     IOMgr::base = event_base_new();
     assert(base != nullptr);
-    IOMgr::bevIOSock = bufferevent_socket_new(IOMgr::base, ioSock, BEV_OPT_CLOSE_ON_FREE);
+    IOMgr::bevIOSock = bufferevent_socket_new(IOMgr::base, IOMgr::ioSock, BEV_OPT_CLOSE_ON_FREE);
     assert(IOMgr::bevIOSock != nullptr);
     bufferevent_setcb(IOMgr::bevIOSock, nullptr, nullptr, onIOSockEventCb, IOMgr::base);
     bufferevent_enable(IOMgr::bevIOSock, EV_WRITE);
@@ -49,13 +49,12 @@ void fdReadDelegate(bufferevent *bev, int outOrError) {
     }
     int fd = bufferevent_getfd(bev);
     assert(fd != -1);
-    string data = BufferHelper::make(
-        IODataMsg{
-            .taskId = IOMgr::taskIOFdHelper.getTaskId(fd),
-            .outOrErr = outOrError,
-            .content = std::move(tmpContent),
-        }
-            .toJson());
+    string data = BufferHelper::make(IODataMsg{
+        .taskId = IOMgr::taskIOFdHelper.getTaskId(fd),
+        .outOrErr = outOrError,
+        .content = std::move(tmpContent),
+    }
+                                         .toJson());
 
     int32_t res = bufferevent_write(IOMgr::bevIOSock, data.data(), data.size());
     if (res == -1)
@@ -75,9 +74,9 @@ void onErrFdReadCb(bufferevent *bev, void *arg) { fdReadDelegate(bev, 1); }
 
 void onMsgEventCb(evutil_socket_t, short events, void *arg) {
     IOEventMsg *msg = (IOEventMsg *)(arg);
+    bufferevent *bev = nullptr;
     switch (msg->msgType) {
     case ADD_FD:
-        bufferevent *bev = nullptr;
         if (msg->fdType == 0) {
             evutil_make_socket_nonblocking(msg->fd);
         } else {
@@ -91,7 +90,7 @@ void onMsgEventCb(evutil_socket_t, short events, void *arg) {
         IOMgr::taskIOFdHelper.add(msg->taskId, msg->fd, bev);
         break;
     case REMOVE_FD:
-        bufferevent *bev = IOMgr::taskIOFdHelper.removeFd(msg->fd);
+        bev = IOMgr::taskIOFdHelper.removeFd(msg->fd);
         if (bev != nullptr)
             bufferevent_free(bev);
         break;
@@ -108,7 +107,7 @@ void onMsgEventCb(evutil_socket_t, short events, void *arg) {
         char *data = msg->content.data();
         while (nWritten < dataSize) {
             size_t nToWrite = dataSize - nWritten;
-            int32_t n = write(msg->fd, data + nWritten, nToWrite);
+            int32_t n = (int32_t)write(msg->fd, data + nWritten, nToWrite);
             if (n == -1) {
                 int tmpErrno = errno;
                 if (tmpErrno == EWOULDBLOCK) {
@@ -122,8 +121,6 @@ void onMsgEventCb(evutil_socket_t, short events, void *arg) {
             }
             nWritten += n;
         }
-        break;
-    default:
         break;
     }
     event_free(msg->ev);

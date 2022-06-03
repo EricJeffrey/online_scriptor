@@ -35,17 +35,17 @@ struct BufferHelper {
      */
     vector<json> tryFullFill(char *buf, size_t n) {
         // return (full, iUsed)
-        auto fullFillOne = [this](char *buf, size_t bufSize) {
+        auto fullFillOne = [this](char *tmpBuf, size_t bufSize) {
             size_t i = 0;
             while (i < bufSize && length.size() < 4) {
-                length.push_back(buf[i]);
+                length.push_back(tmpBuf[i]);
                 ++i;
             }
             if (length.size() == 4) {
                 size_t expectedSize =
                     length[0] + (length[1] << 8) + (length[2] << 16) + (length[3] << 24);
                 while (content.size() < expectedSize && i < bufSize) {
-                    content.push_back(buf[i]);
+                    content.push_back(tmpBuf[i]);
                     i += 1;
                 }
                 return std::make_pair(content.size() == expectedSize, i);
