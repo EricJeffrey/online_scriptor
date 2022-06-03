@@ -11,15 +11,13 @@
 
 using std::string, std::max, std::to_string;
 
-// RAII Guard of leveldb::DB, call DBGuard::init before use!
+// RAII Guard of leveldb::DB, call open before any use
 struct DBGuard {
     leveldb::DB *db;
     bool opened;
 
     DBGuard() : db(nullptr), opened(false){};
     ~DBGuard() { delete db; }
-
-    static void init();
 
     inline void checkOpened() {
         if (!opened)

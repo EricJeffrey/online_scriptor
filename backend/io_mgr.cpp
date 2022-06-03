@@ -4,6 +4,7 @@
 #include "event2/event_struct.h"
 #include "event2/util.h"
 
+#include "buffer_helper.hpp"
 #include "io_mgr.hpp"
 
 #include <cassert>
@@ -14,6 +15,7 @@
 int IOMgr::ioSock = -1;
 event_base *IOMgr::base = nullptr;
 TaskIOFdHelper IOMgr::taskIOFdHelper;
+bufferevent *IOMgr::bevIOSock = nullptr;
 
 void onIOSockEventCb(bufferevent *bev, short events, void *arg) {
     if (events & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) {
@@ -47,13 +49,14 @@ void fdReadDelegate(bufferevent *bev, int outOrError) {
     }
     int fd = bufferevent_getfd(bev);
     assert(fd != -1);
-    string data =
+    string data = BufferHelper::make(
         IODataMsg{
             .taskId = IOMgr::taskIOFdHelper.getTaskId(fd),
             .outOrErr = outOrError,
             .content = std::move(tmpContent),
         }
-            .toJson();
+            .toJson());
+
     int32_t res = bufferevent_write(IOMgr::bevIOSock, data.data(), data.size());
     if (res == -1)
         printf("IOMgr: bufferevent_write failed! ioSock is probably dead\n");
@@ -191,4 +194,10 @@ void IOMgr::putToStdin(int fd, string buf) {
         .content = std::move(buf),
     };
     addMsgEvent(msg);
+}
+
+void IOMgr::stop() {
+    bufferevent_free(IOMgr::bevIOSock);
+    event_base_loopexit(IOMgr::base, nullptr);
+    event_base_free(IOMgr::base);
 }

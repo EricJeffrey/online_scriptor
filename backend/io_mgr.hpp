@@ -23,6 +23,7 @@ struct IOMgr {
     static bufferevent *bevIOSock;
 
     static void start(int ioSock);
+    static void stop();
     static void addFds(int32_t taskId, array<int, 3> fds);
     static void removeFds(array<int, 3> fds);
     static void enableRedirect(array<int, 2> fds);

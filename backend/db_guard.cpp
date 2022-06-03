@@ -1,13 +1,6 @@
 #include "db_guard.hpp"
 
-constexpr char *DB_PATH = "/data/online_scriptor/task_db";
-constexpr char *DB_KEY_TASK_ID_SET = "taskIdSet";
-
-void DBGuard::init() {
-    DBGuard guard;
-    guard.open(true);
-    guard.writeToDB(DB_KEY_TASK_ID_SET, "[]");
-}
+constexpr char DB_PATH[] = "/data/online_scriptor/task_db";
 
 void DBGuard::open(bool create_if_missing = false) {
     leveldb::Options options;

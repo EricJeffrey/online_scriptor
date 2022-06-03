@@ -6,7 +6,7 @@ include ./build/conanbuildinfo.mak
 
 CFLAGS              += $(CONAN_CFLAGS)
 CXXFLAGS            += $(CONAN_CXXFLAGS)
-CXXFLAGS 			+= -std=c++17
+CXXFLAGS 			+= -std=c++2a -fstack-protector -pipe -Wall -Wshadow -Wno-unused-variable -Wfloat-equal -Wsign-compare -Wconversion
 CPPFLAGS            += $(addprefix -I, $(CONAN_INCLUDE_DIRS))
 CPPFLAGS            += $(addprefix -D, $(CONAN_DEFINES))
 LDFLAGS             += $(addprefix -L, $(CONAN_LIB_DIRS))
@@ -18,27 +18,23 @@ EXELINKFLAGS        += $(CONAN_EXELINKFLAGS)
 #     Make variables for a sample App
 #----------------------------------------
 
-SRCS          = task_manager.cpp
-OBJS          = task_manager.o
-EXE_FILENAME  = task_manager
+SRCS          = *.cpp
+HDRS		  = *.hpp
+OBJS          = cmd_mgr.o cmd_msg.o db_guard.o io_data_msg.o io_mgr.o script_helper.o task.o task_db_helper.o task_manager.o
 OUTPUT_DIR    = build
 
 #----------------------------------------
 #     Make Rules
 #----------------------------------------
 
-.PHONY                  :   exe
+.PHONY                  :   main
 .PHONY                  :   clean
-exe                     :   $(EXE_FILENAME)
 
-$(EXE_FILENAME)         :   $(OBJS)
-	g++ $(OBJS) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS) -o $(OUTPUT_DIR)/$(EXE_FILENAME)
+main			        :   $(OBJS) $(HDRS)
+	g++-9 -D TESTING $(OBJS) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS) -o $(OUTPUT_DIR)/main
 
-*.o                     :   $(SRCS)
-	g++ -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
-
-%.test.out				: %.cpp
-	g++ -g -D TESTING $< $(CXXFLAGS) $(LDFLAGS) $(LDLIBS) -o testing/$@
+*.o                     :   *.cpp
+	g++-9 -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
 
 clean:
-	rm -rf $(OUTPUT_DIR)/$(EXE_FILENAME) *.o
+	rm -rf $(OUTPUT_DIR)/main* *.o

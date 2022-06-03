@@ -2,8 +2,15 @@
 #include "task_db_helper.hpp"
 #include "db_guard.hpp"
 
-constexpr char *DB_KEY_TASK_ID_SET = "taskIdSet";
+constexpr char DB_KEY_TASK_ID_SET[] = "taskIdSet";
+
 using std::string, std::max, std::to_string;
+
+void TaskDBHelper::init() {
+    DBGuard guard;
+    guard.open(true);
+    guard.writeToDB(DB_KEY_TASK_ID_SET, "[]");
+}
 
 static bool isInDB(DBGuard &guard, int32_t taskId) {
     auto idListJson = json::parse(guard.readDB(DB_KEY_TASK_ID_SET));

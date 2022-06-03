@@ -1,4 +1,6 @@
-#include "cmd_mgr.hpp"
+#include "cmd_msg.hpp"
+
+using std::runtime_error;
 
 constexpr char *CMDMSG_KEY_CMDTYPE = "cmdType";
 constexpr char *CMDMSG_KEY_TASKID = "taskId";
@@ -59,6 +61,8 @@ CmdMsg CmdMsg::parse(const json &jsonStr) {
         checkKeyWithThrow(CMDMSG_KEY_STDINCONTENT);
         resMsg.taskId = jsonStr[CMDMSG_KEY_TASKID].get<int32_t>();
         resMsg.stdinContent = jsonStr[CMDMSG_KEY_TASKID].get<string>();
+        break;
+    case SHUT_DOWN:
         break;
     default:
         throw runtime_error("construct CmdMsg failed, invalid cmdTyp");

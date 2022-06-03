@@ -7,9 +7,9 @@
 using nlohmann::json;
 using std::string;
 
-enum TaskScriptType { PYTHON, BASH, UNINIT };
+enum TaskScriptType { PYTHON, BASH };
 
-enum TaskStatus { IDLE, RUNNING, UNINIT };
+enum TaskStatus { IDLE, RUNNING };
 
 struct Task {
     int32_t id;

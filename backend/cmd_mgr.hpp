@@ -1,53 +1,34 @@
 #if !defined(CMD_MGR)
 #define CMD_MGR
 
-#include "event2/event.h"
-#include "nlohmann/json.hpp"
+#include "buffer_helper.hpp"
 #include "task.hpp"
+
+#include "event2/bufferevent.h"
+#include "event2/event.h"
+
 #include <array>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
+#include <vector>
 
-using nlohmann::json;
-using std::array, std::shared_ptr, std::make_shared;
-using std::string, std::map, std::runtime_error;
+using std::array, std::shared_ptr;
+using std::string, std::map, std::runtime_error, std::vector;
 
 struct RunningTaskHelper;
 
 struct CmdMgr {
     static int cmdSock;
     static event_base *base;
+    static event *evChild;
+    static bufferevent *bevCmdSock;
     static RunningTaskHelper runningTaskHelper;
+    static BufferHelper bufferHelper;
 
     static void start(int cmdSock);
-};
-
-enum CmdType {
-    START_TASK,
-    CREATE_TASK,
-    STOP_TASK,
-    DELETE_TASK,
-    GET_TASK,
-    ENABLE_REDIRECT,
-    DISABLE_REDIRECT,
-    PUT_TO_STDIN,
-};
-
-struct CmdMsg {
-    CmdType cmdType;
-    int32_t taskId;
-    string title; // for task create
-    string scriptCode;
-    TaskScriptType scriptType;
-    int32_t interval;
-    int32_t maxTimes;
-    string stdinContent;
-
-    string toJsonStr();
-    // construct from json
-    static CmdMsg parse(const json &);
+    static void stop();
 };
 
 struct CmdRes {
@@ -78,7 +59,7 @@ public:
     void add(int32_t taskId, pid_t pid, int fdIn, int fdOut, int fdErr) {
         if (isPidIn(pid) || isTaskIdIn(taskId))
             throw runtime_error("add to running task failed, pid or taskId already exist");
-        shared_ptr<RunningTask> taskPtr = make_shared<RunningTask>(taskId, pid, fdIn, fdOut, fdErr);
+        shared_ptr<RunningTask> taskPtr = std::make_shared<RunningTask>(taskId, pid, fdIn, fdOut, fdErr);
         pid2RunningTask[pid] = taskPtr;
         taskId2RunningTask[taskId] = taskPtr;
     }
@@ -103,6 +84,14 @@ public:
         int32_t taskId = pid2RunningTask[pid]->taskId;
         pid2RunningTask.erase(pid);
         taskId2RunningTask.erase(taskId);
+    }
+
+    vector<int> getFdsExcept(int32_t taskId) {
+        vector<int> fds;
+        for (auto &&p : taskId2RunningTask)
+            if (p.first != taskId)
+                fds.insert(fds.end(), p.second->fds.begin(), p.second->fds.end());
+        return fds;
     }
 };
 
