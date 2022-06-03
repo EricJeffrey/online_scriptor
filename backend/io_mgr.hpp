@@ -29,7 +29,7 @@ struct IOMgr {
     static void removeFds(array<int, 3> fds);
     static void enableRedirect(array<int, 2> fds);
     static void disableRedirect(array<int, 2> fds);
-    static void putToStdin(int fd, string buf);
+    static void putToStdin(int fd, const string& buf);
 };
 
 enum IOMsgType {

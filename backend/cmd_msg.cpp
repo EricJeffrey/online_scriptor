@@ -11,7 +11,7 @@ constexpr char CMDMSG_KEY_SCRIPTTYPE[] = "scriptType";
 constexpr char CMDMSG_KEY_INTERVAL[] = "interval";
 constexpr char CMDMSG_KEY_MAXTIMES[] = "maxTimes";
 
-string CmdMsg::toJsonStr() {
+string CmdMsg::toJsonStr() const {
     return json({
         {CMDMSG_KEY_CMDTYPE, cmdType},
         {CMDMSG_KEY_TASKID, taskId},
@@ -21,7 +21,7 @@ string CmdMsg::toJsonStr() {
         {CMDMSG_KEY_INTERVAL, interval},
         {CMDMSG_KEY_MAXTIMES, maxTimes},
         {CMDMSG_KEY_STDINCONTENT, stdinContent},
-    });
+    }).dump();
 }
 
 CmdMsg CmdMsg::parse(const json &jsonStr) {

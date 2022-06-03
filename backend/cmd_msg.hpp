@@ -7,9 +7,10 @@
 
 #include <cctype>
 #include <string>
+#include <vector>
 
 using nlohmann::json;
-using std::string;
+using std::string, std::vector;
 
 enum CmdType {
     START_TASK,
@@ -17,6 +18,7 @@ enum CmdType {
     STOP_TASK,
     DELETE_TASK,
     GET_TASK,
+    GET_ALL_TASK,
     ENABLE_REDIRECT,
     DISABLE_REDIRECT,
     PUT_TO_STDIN,
@@ -33,9 +35,23 @@ struct CmdMsg {
     int32_t maxTimes;
     string stdinContent;
 
-    string toJsonStr();
+    string toJsonStr() const;
     // construct from json
     static CmdMsg parse(const json &);
+};
+
+enum CmdResType {
+    OK, TASK_NOT_RUNNING, NO_SUCH_TASK, TASK_IS_RUNNING, FAILED,  INVALID_CMD_TYPE
+};
+
+struct CmdRes {
+    CmdResType status;
+    int32_t taskId;
+    pid_t pid;
+    Task task;
+    vector<Task> taskList;
+
+    string toJson() const;
 };
 
 #endif // CMD_MSG

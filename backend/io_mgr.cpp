@@ -183,7 +183,7 @@ void IOMgr::disableRedirect(array<int, 2> fds) {
     }
 }
 
-void IOMgr::putToStdin(int fd, string buf) {
+void IOMgr::putToStdin(int fd, const string& buf) {
     IOEventMsg *msg = new IOEventMsg{
         .msgType = IOMsgType::PUT_DATA_TO_FD,
         .fd = fd,

@@ -24,7 +24,7 @@ struct Task {
     int32_t exitCode;
     int64_t exitTimeStamp;
 
-    Task() {}
+    Task() : id(-1) {}
 
     Task(json data);
 

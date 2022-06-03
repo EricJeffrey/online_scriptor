@@ -31,13 +31,6 @@ struct CmdMgr {
     static void stop();
 };
 
-struct CmdRes {
-    bool ok;
-    int32_t taskId;
-    pid_t pid;
-    Task task;
-};
-
 struct RunningTaskHelper {
 private:
     struct RunningTask {

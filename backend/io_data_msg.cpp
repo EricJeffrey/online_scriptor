@@ -9,7 +9,7 @@ string IODataMsg::toJson() const {
         {IODATAMSG_KEY_TASK_ID, taskId},
         {IODATAMSG_KEY_CONTENT, content},
         {IODATAMSG_KEY_OUT_OR_ERROR, outOrErr},
-    });
+    }).dump();
 }
 
 IODataMsg IODataMsg::parse(const json &jsonStr) {
