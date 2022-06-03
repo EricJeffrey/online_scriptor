@@ -271,7 +271,7 @@ string CmdRes::toJson() const {
                     {CMDRES_KEY_TASK, taskId},
                     {CMDRES_KEY_PID, pid},
                     {CMDRES_KEY_TASK, task.toJson()},
-                    {CMDRES_KEY_TASK_LIST, json::parse(taskList)},
+                    {CMDRES_KEY_TASK_LIST, taskList},
                 })
         .dump();
 }

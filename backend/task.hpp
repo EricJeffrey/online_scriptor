@@ -31,4 +31,6 @@ struct Task {
     json toJson() const;
 };
 
+inline void to_json(json &j, const Task &t) { j = t.toJson(); };
+
 #endif // TASK

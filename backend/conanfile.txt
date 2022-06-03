@@ -1,8 +1,8 @@
 [requires]
+uwebsockets/20.14.0
 libevent/2.1.12
 nlohmann_json/3.10.5
 leveldb/1.23
-uwebsockets/20.14.0
 
 [generators]
-make
+cmake

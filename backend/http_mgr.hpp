@@ -1,7 +1,7 @@
 #if !defined(HTTP_MGR)
 #define HTTP_MGR
 
-#include "WebSocket.h"
+#include "uWebSockets/App.h"
 
 #include <cstdlib>
 #include <map>
