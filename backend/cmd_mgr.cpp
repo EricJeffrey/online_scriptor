@@ -75,11 +75,13 @@ CmdRes stopTask(const CmdMsg &msg) {
 }
 
 CmdRes deleteTask(const CmdMsg &msg) {
-    if (CmdMgr::runningTaskHelper.isTaskRunning(msg.taskId)) {
+    if (CmdMgr::runningTaskHelper.isTaskRunning(msg.taskId))
         stopTask(msg);
-    }
     if (TaskDBHelper::hasTask(msg.taskId)) {
         TaskDBHelper::deleteTask(msg.taskId);
+        event *ev = CmdMgr::schedTaskHelper.remove(msg.taskId);
+        if (ev != nullptr)
+            event_free(ev);
         return CmdRes{.status = CmdRes::Type::OK};
     } else {
         return CmdRes{.status = CmdRes::Type::NO_SUCH_TASK};
@@ -222,20 +224,23 @@ void onSIGCHILDCb(evutil_socket_t fd, short events, void *arg) {
             IOMgr::removeFds(fds);
             int32_t taskId = CmdMgr::runningTaskHelper.pid2RunningTask.at(pid)->mTaskId;
             CmdMgr::runningTaskHelper.removeByPid(pid);
-            Task newTask = TaskDBHelper::getTask(taskId);
-            newTask.exitCode = WEXITSTATUS(status);
-            newTask.exitTimeStamp = timestamp;
-            newTask.status = TaskStatus::IDLE;
-            newTask.pid = -1;
-            TaskDBHelper::updateTask(taskId, newTask);
-            if (newTask.exitCode == 0 && newTask.intervalInSec > 0 &&
-                newTask.timesExecuted < newTask.maxTimes) {
-                event *ev =
-                    evtimer_new(CmdMgr::base, onTimerEvent,
-                                (new CmdMsg{.cmdType = CmdMsg::Type::START_TASK, taskId = taskId}));
-                timeval tv{.tv_sec = newTask.intervalInSec, .tv_usec = 0};
-                evtimer_add(ev, &tv);
-                CmdMgr::schedTaskHelper.set(taskId, ev);
+            // make sure task is not deleted
+            if (TaskDBHelper::hasTask(taskId)) {
+                Task newTask = TaskDBHelper::getTask(taskId);
+                newTask.exitCode = WEXITSTATUS(status);
+                newTask.exitTimeStamp = timestamp;
+                newTask.status = TaskStatus::IDLE;
+                newTask.pid = -1;
+                TaskDBHelper::updateTask(taskId, newTask);
+                if (newTask.exitCode == 0 && newTask.intervalInSec > 0 &&
+                    newTask.timesExecuted < newTask.maxTimes) {
+                    event *ev = evtimer_new(
+                        CmdMgr::base, onTimerEvent,
+                        (new CmdMsg{.cmdType = CmdMsg::Type::START_TASK, taskId = taskId}));
+                    timeval tv{.tv_sec = newTask.intervalInSec, .tv_usec = 0};
+                    evtimer_add(ev, &tv);
+                    CmdMgr::schedTaskHelper.set(taskId, ev);
+                }
             }
         }
     }

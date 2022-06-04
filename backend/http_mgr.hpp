@@ -21,4 +21,6 @@ struct HttpMgr {
     static void start(int cmdSock, int ioSock);
 };
 
+void wsIODataThread(int);
+
 #endif // HTTP_MGR

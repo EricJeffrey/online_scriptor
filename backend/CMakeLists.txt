@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.0.0)
 project(main VERSION 0.1.0)
 
 add_compile_options("-std=c++17" "-Wall")
-add_compile_definitions("TESTING")
+# add_compile_definitions("TESTING_TASK_MGR")
+add_compile_definitions("TESTING_HTTP_MGR")
 
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()

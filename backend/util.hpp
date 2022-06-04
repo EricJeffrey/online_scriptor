@@ -6,6 +6,8 @@
 #include <cstring>
 #include <stdexcept>
 #include <string>
+#include <sys/fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 using std::string, std::runtime_error;
@@ -29,6 +31,17 @@ inline void readN(int fd, char *buf, int32_t n) {
             throw runtime_error("readN: read failed! " + string(strerror(errno)));
         nRead += res;
     }
+}
+
+// check if filePath exist and is regular file
+inline bool filePathOk(const string &filePath) {
+    struct stat statBuf;
+    bool res = true;
+    if (stat(filePath.c_str(), &statBuf) == -1)
+        res = false;
+    if (!S_ISREG(statBuf.st_mode))
+        res = false;
+    return res;
 }
 
 #endif // UTIL

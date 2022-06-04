@@ -10,7 +10,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#if defined(TESTING)
+#if defined(TESTING_TASK_MGR)
 
 #include "buffer_helper.hpp"
 #include "cmd_msg.hpp"
@@ -39,7 +39,7 @@ void sigHandler(int signum) {
     }
 }
 
-CmdRes writeMsgAndWaitRes(int fd, const CmdMsg &msg) {
+CmdRes awaitTaskMgrRes(int fd, const CmdMsg &msg) {
     BufferHelper::writeOne(fd, msg.toJson());
     return CmdRes::parse(BufferHelper::readOne(fd));
 }
@@ -48,7 +48,7 @@ void testOne(const CmdMsg &msg, CmdRes::Type resStatus = CmdRes::Type::OK) {
     static int index = 1;
     fmt::print("----------------------------------------\n");
     fmt::print("\n{}, {}\n", index, CMDTYPE_TO_STRING_VIEW[msg.cmdType].data());
-    CmdRes res = writeMsgAndWaitRes(cmdSocks[0], msg);
+    CmdRes res = awaitTaskMgrRes(cmdSocks[0], msg);
     fmt::print("res.status: {}\n\n", CMDRESTYPE_TO_STRING_VIEW[res.status]);
     fmt::print("res: {}\n\n", res.toJsonStr().c_str());
     if (resStatus == res.status)
@@ -90,7 +90,8 @@ int main(int argc, char const *argv[]) {
     }
     fmt::print("__DEBUG pid of TaskMgr is {}. Attch GDB and press enter to continue", taskMgrPid);
     getchar();
-    // TODO test here
+
+    // testing
     {
         fmt::print("---------- test started ----------\n");
 
@@ -190,9 +191,8 @@ print(\"over\")\n\
 
         testOne(CmdMsg{.cmdType = CmdMsg::Type::CREATE_TASK,
                        .title = "hello world 2",
-                       .scriptCode =
-                           "import time;\nfor i in range(20):\n    print('!!=_=!! ', i, "
-                           "flush=True);\n    time.sleep(1)\n\nprint('over')\n",
+                       .scriptCode = "import time;\nfor i in range(20):\n    print('!!=_=!! ', i, "
+                                     "flush=True);\n    time.sleep(1)\n\nprint('over')\n",
                        .scriptType = TaskScriptType::PYTHON,
                        .interval = 10,
                        .maxTimes = 10},
@@ -211,6 +211,8 @@ print(\"over\")\n\
         testOne(CmdMsg{.cmdType = CmdMsg::Type::ENABLE_REDIRECT, .taskId = 4});
 
         sleep(1);
+        testOne(CmdMsg{.cmdType = CmdMsg::Type::DELETE_TASK, .taskId = 4});
+
         testOne(CmdMsg{.cmdType = CmdMsg::Type::STOP_TASK, .taskId = 4});
 
         fmt::print("---------- test done ----------\n");
@@ -224,9 +226,24 @@ print(\"over\")\n\
 
 #else
 
+#if defined(TESTING_HTTP_MGR)
+
+#include "http_mgr.hpp"
+
 int main(int argc, char const *argv[]) {
-    //
+    HttpMgr::start(-1, -1);
     return 0;
 }
 
-#endif // TESTING
+#else
+
+#include <cstdio>
+
+int main(int argc, char const *argv[]) {
+    printf("Hello World\n");
+    return 0;
+}
+
+#endif // TESTING_HTTP_MGR
+
+#endif // TESTING_TASK_MGR
