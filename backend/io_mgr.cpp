@@ -19,7 +19,7 @@ bufferevent *IOMgr::bevIOSock = nullptr;
 
 void onIOSockEventCb(bufferevent *bev, short events, void *arg) {
     if (events & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) {
-        printf("Error on IO Sock, shutting down IOMgr\n");
+        printf("Error or EOF on IOSock, shutting down IOMgr\n");
         bufferevent_free(bev);
         event_base_loopexit((event_base *)(arg), nullptr);
         IOMgr::base = nullptr;
@@ -34,7 +34,7 @@ void IOMgr::start(int sock) {
     IOMgr::bevIOSock = bufferevent_socket_new(IOMgr::base, IOMgr::ioSock, BEV_OPT_CLOSE_ON_FREE);
     assert(IOMgr::bevIOSock != nullptr);
     bufferevent_setcb(IOMgr::bevIOSock, nullptr, nullptr, onIOSockEventCb, IOMgr::base);
-    bufferevent_enable(IOMgr::bevIOSock, EV_WRITE);
+    bufferevent_enable(IOMgr::bevIOSock, EV_WRITE | EV_READ);
     int res = event_base_loop(base, EVLOOP_NO_EXIT_ON_EMPTY);
     assert(res != -1);
 }
@@ -183,7 +183,7 @@ void IOMgr::disableRedirect(array<int, 2> fds) {
     }
 }
 
-void IOMgr::putToStdin(int fd, const string& buf) {
+void IOMgr::putToStdin(int fd, const string &buf) {
     IOEventMsg *msg = new IOEventMsg{
         .msgType = IOMsgType::PUT_DATA_TO_FD,
         .fd = fd,

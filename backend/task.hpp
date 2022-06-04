@@ -26,11 +26,12 @@ struct Task {
 
     Task() : id(-1) {}
 
-    Task(json data);
+    Task(const json& data);
 
     json toJson() const;
 };
 
 inline void to_json(json &j, const Task &t) { j = t.toJson(); };
+inline void from_json(const json &j, Task &t) { t = Task(j); }
 
 #endif // TASK

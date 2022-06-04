@@ -35,14 +35,13 @@ struct CmdMsg {
     int32_t maxTimes;
     string stdinContent;
 
+    json toJson() const;
     string toJsonStr() const;
     // construct from json
     static CmdMsg parse(const json &);
 };
 
-enum CmdResType {
-    OK, TASK_NOT_RUNNING, NO_SUCH_TASK, TASK_IS_RUNNING, FAILED,  INVALID_CMD_TYPE
-};
+enum CmdResType { OK, TASK_NOT_RUNNING, NO_SUCH_TASK, TASK_IS_RUNNING, FAILED, INVALID_CMD_TYPE };
 
 struct CmdRes {
     CmdResType status;
@@ -51,7 +50,9 @@ struct CmdRes {
     Task task;
     vector<Task> taskList;
 
-    string toJson() const;
+    json toJson() const;
+    string toJsonStr()const;
+    static CmdRes parse(const json &);
 };
 
 #endif // CMD_MSG

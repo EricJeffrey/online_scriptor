@@ -10,11 +10,11 @@ void startTaskMgr(int cmdSock, int ioSock) {
     if (evthread_use_pthreads() == -1)
         throw runtime_error("call to evthread_use_pthread failed!");
     TaskDBHelper::init();
-
+    printf("starting IOMgr\n");
     auto ioMgrThread = std::thread([ioSock]() { IOMgr::start(ioSock); });
+    printf("starting CmdMgr\n");
     CmdMgr::start(cmdSock);
-    printf("CmdMgr exited, stopping IOMgr\n");
-    event_base_loopexit(IOMgr::base, nullptr);
+    printf("CmdMgr exited, waiting IOMgr\n");
     ioMgrThread.join();
     printf("CmdMgr & IOMgr exited\n");
 }

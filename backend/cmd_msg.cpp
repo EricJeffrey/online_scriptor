@@ -11,8 +11,8 @@ constexpr char CMDMSG_KEY_SCRIPTTYPE[] = "scriptType";
 constexpr char CMDMSG_KEY_INTERVAL[] = "interval";
 constexpr char CMDMSG_KEY_MAXTIMES[] = "maxTimes";
 
-string CmdMsg::toJsonStr() const {
-    return json({
+json CmdMsg::toJson() const {
+    return json::object({
         {CMDMSG_KEY_CMDTYPE, cmdType},
         {CMDMSG_KEY_TASKID, taskId},
         {CMDMSG_KEY_TITLE, title},
@@ -21,8 +21,10 @@ string CmdMsg::toJsonStr() const {
         {CMDMSG_KEY_INTERVAL, interval},
         {CMDMSG_KEY_MAXTIMES, maxTimes},
         {CMDMSG_KEY_STDINCONTENT, stdinContent},
-    }).dump();
+    });
 }
+
+string CmdMsg::toJsonStr() const { return toJson().dump(); }
 
 CmdMsg CmdMsg::parse(const json &jsonStr) {
     auto checkKeyWithThrow = [&jsonStr](const char *key) {
@@ -62,11 +64,44 @@ CmdMsg CmdMsg::parse(const json &jsonStr) {
         resMsg.taskId = jsonStr[CMDMSG_KEY_TASKID].get<int32_t>();
         resMsg.stdinContent = jsonStr[CMDMSG_KEY_TASKID].get<string>();
         break;
+    case GET_ALL_TASK:
     case SHUT_DOWN:
         break;
     default:
-        throw runtime_error("construct CmdMsg failed, invalid cmdTyp");
+        throw runtime_error("construct CmdMsg failed, invalid cmdType");
         break;
     }
     return resMsg;
+}
+
+constexpr char CMDRES_KEY_STATUS[] = "status";
+constexpr char CMDRES_KEY_TASKID[] = "taskId";
+constexpr char CMDRES_KEY_PID[] = "pid";
+constexpr char CMDRES_KEY_TASK[] = "task";
+constexpr char CMDRES_KEY_TASK_LIST[] = "taskList";
+
+json CmdRes::toJson() const {
+    return json::object({
+        {CMDRES_KEY_STATUS, status},
+        {CMDRES_KEY_TASKID, taskId},
+        {CMDRES_KEY_PID, pid},
+        {CMDRES_KEY_TASK, task},
+        {CMDRES_KEY_TASK_LIST, taskList},
+    });
+}
+
+string CmdRes::toJsonStr() const { return toJson().dump(); }
+
+CmdRes CmdRes::parse(const json &jsonData) {
+    assert(jsonData.contains(CMDRES_KEY_STATUS));
+    CmdRes res{.status = jsonData[CMDRES_KEY_STATUS].get<CmdResType>()};
+    if (jsonData.contains(CMDRES_KEY_TASKID))
+        res.taskId = jsonData[CMDRES_KEY_TASKID].get<int32_t>();
+    if (jsonData.contains(CMDRES_KEY_PID))
+        res.pid = jsonData[CMDRES_KEY_PID].get<pid_t>();
+    if (jsonData.contains(CMDRES_KEY_TASK))
+        res.task = jsonData[CMDRES_KEY_TASK].get<Task>();
+    if (jsonData.contains(CMDRES_KEY_TASK_LIST))
+        res.taskList = jsonData[CMDRES_KEY_TASK_LIST].get<vector<Task>>();
+    return res;
 }

@@ -26,6 +26,7 @@ BufferHelper CmdMgr::bufferHelper;
 constexpr char SCRIPT_ROOT_PATH[] = "/data/online_scriptor/";
 
 CmdRes createTask(const CmdMsg &msg) {
+    // printf("__DEBUG cmd_mgr:createTask\n");
     int32_t newTaskId = TaskDBHelper::createTask(msg.title, msg.scriptCode, msg.scriptType,
                                                  msg.interval, msg.maxTimes);
     return CmdRes{.status = CmdResType::OK, .taskId = newTaskId};
@@ -127,7 +128,8 @@ CmdRes getAllTask(const CmdMsg &msg) {
 }
 
 void writeBackCmdRes(const CmdRes &cmdRes) {
-    string data = BufferHelper::make(cmdRes.toJson());
+    // printf("__DEBUG cmd_mgr: writebackcmdres, data: %s\n", cmdRes.toJsonStr().c_str());
+    string data = BufferHelper::make(cmdRes.toJsonStr());
     int res = bufferevent_write(CmdMgr::bevCmdSock, data.data(), data.size());
     assert(res != -1);
 }
@@ -201,7 +203,7 @@ void onCmdSockReadCb(bufferevent *bev, void *arg) {
 
 void onCmdSockEventCb(bufferevent *bev, short events, void *arg) {
     if (events & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) {
-        printf("CmdMgr: ERROR or EOF on cmdSock, stopping\n");
+        printf("CmdMgr: ERROR or EOF on cmdSock, shutting down CmdMgr\n");
         bufferevent_free(bev);
         event_base_loopexit(CmdMgr::base, nullptr);
     }
@@ -224,13 +226,14 @@ void onSIGCHILDCb(evutil_socket_t fd, short events, void *arg) {
             newTask.status = TaskStatus::IDLE;
             newTask.pid = -1;
             TaskDBHelper::updateTask(taskId, newTask);
+            // TODO 设定间隔 task.interval 之后的timer
         }
     }
 }
 
 void CmdMgr::start(int sock) {
     evutil_make_socket_closeonexec(sock);
-    CmdMgr::cmdSock = cmdSock;
+    CmdMgr::cmdSock = sock;
     CmdMgr::base = event_base_new();
     assert(base != nullptr);
 
@@ -248,6 +251,21 @@ void CmdMgr::start(int sock) {
     res = evsignal_add(CmdMgr::evChild, nullptr);
     assert(res != -1);
 
+    // write 1 byte to let the parent know we are ready to go
+    {
+        while (true) {
+            // printf("__DEBUG cmd_mgr writing notification\n");
+            int res = write(CmdMgr::cmdSock, "1", 1);
+            if (res == 1)
+                break;
+            if (res == -1 && (errno == EWOULDBLOCK || errno == EAGAIN))
+                continue;
+            else
+                throw runtime_error("CmdMgr, write notification to CmdSock failed! " +
+                                    string(strerror(errno)));
+        }
+    }
+
     res = event_base_loop(CmdMgr::base, EVLOOP_NO_EXIT_ON_EMPTY);
     assert(res != -1);
 }
@@ -257,21 +275,4 @@ void CmdMgr::stop() {
     bufferevent_free(CmdMgr::bevCmdSock);
     event_base_loopexit(CmdMgr::base, nullptr);
     event_base_free(CmdMgr::base);
-}
-
-constexpr char CMDRES_KEY_STATUS[] = "status";
-constexpr char CMDRES_KEY_TASKID[] = "taskId";
-constexpr char CMDRES_KEY_PID[] = "pid";
-constexpr char CMDRES_KEY_TASK[] = "task";
-constexpr char CMDRES_KEY_TASK_LIST[] = "taskList";
-
-string CmdRes::toJson() const {
-    return json({
-                    {CMDRES_KEY_STATUS, status},
-                    {CMDRES_KEY_TASK, taskId},
-                    {CMDRES_KEY_PID, pid},
-                    {CMDRES_KEY_TASK, task.toJson()},
-                    {CMDRES_KEY_TASK_LIST, taskList},
-                })
-        .dump();
 }
