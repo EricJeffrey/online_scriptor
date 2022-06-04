@@ -3,6 +3,7 @@
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "event2/util.h"
+#include "fmt/format.h"
 
 #include "buffer_helper.hpp"
 #include "io_mgr.hpp"
@@ -19,7 +20,7 @@ bufferevent *IOMgr::bevIOSock = nullptr;
 
 void onIOSockEventCb(bufferevent *bev, short events, void *arg) {
     if (events & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) {
-        printf("Error or EOF on IOSock, shutting down IOMgr\n");
+        fmt::print("Error or EOF on IOSock, shutting down IOMgr\n");
         bufferevent_free(bev);
         event_base_loopexit((event_base *)(arg), nullptr);
         IOMgr::base = nullptr;
@@ -49,23 +50,26 @@ void fdReadDelegate(bufferevent *bev, int outOrError) {
     }
     int fd = bufferevent_getfd(bev);
     assert(fd != -1);
-    string data = BufferHelper::make(IODataMsg{
-        .taskId = IOMgr::taskIOFdHelper.getTaskId(fd),
-        .outOrErr = outOrError,
-        .content = std::move(tmpContent),
-    }
-                                         .toJson());
 
-    int32_t res = bufferevent_write(IOMgr::bevIOSock, data.data(), data.size());
-    if (res == -1)
-        printf("IOMgr: bufferevent_write failed! ioSock is probably dead\n");
+    if (IOMgr::taskIOFdHelper.isRedirectEnabled(fd)) {
+        string data = BufferHelper::make(IODataMsg{
+            .taskId = IOMgr::taskIOFdHelper.getTaskId(fd),
+            .outOrErr = outOrError,
+            .content = std::move(tmpContent),
+        }
+                                             .toJsonStr());
+
+        int32_t res = bufferevent_write(IOMgr::bevIOSock, data.data(), data.size());
+        if (res == -1)
+            fmt::print("IOMgr: bufferevent_write failed! ioSock is probably dead\n");
+    }
 }
 
 void onOutFdReadCb(bufferevent *bev, void *arg) { fdReadDelegate(bev, 0); }
 
 void onFdEventCb(bufferevent *bev, short events, void *arg) {
     if (events & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) {
-        printf("IOMgr: EOF or ERROR on fd %d\n", bufferevent_getfd(bev));
+        fmt::print("IOMgr: EOF or ERROR on fd {}\n", bufferevent_getfd(bev));
         bufferevent_free(bev);
     }
 }
@@ -101,25 +105,26 @@ void onMsgEventCb(evutil_socket_t, short events, void *arg) {
         IOMgr::taskIOFdHelper.disableRedirect(msg->fd);
         break;
     case PUT_DATA_TO_FD:
-        IOMgr::taskIOFdHelper.throwIfNotIn(msg->fd);
-        size_t nWritten = 0;
-        size_t dataSize = msg->content.size();
-        char *data = msg->content.data();
-        while (nWritten < dataSize) {
-            size_t nToWrite = dataSize - nWritten;
-            int32_t n = (int32_t)write(msg->fd, data + nWritten, nToWrite);
-            if (n == -1) {
-                int tmpErrno = errno;
-                if (tmpErrno == EWOULDBLOCK) {
-                    printf("IOMgr put data to stdin, task is not reading, dropped\n");
-                    break;
-                } else if (tmpErrno != EINTR) {
-                    printf("IOMgr put data to stdin, write to task stdin failed %s\n",
-                           strerror(tmpErrno));
-                    break;
+        if (IOMgr::taskIOFdHelper.hasFd(msg->fd)) {
+            size_t nWritten = 0, dataSize = msg->content.size();
+            while (nWritten < dataSize) {
+                int32_t n =
+                    (int32_t)write(msg->fd, msg->content.data() + nWritten, dataSize - nWritten);
+                if (n == -1) {
+                    int tmpErrno = errno;
+                    if (tmpErrno == EWOULDBLOCK || tmpErrno == EAGAIN) {
+                        fmt::print("IOMgr put data to stdin, task is not reading, dropped\n");
+                        break;
+                    } else if (tmpErrno == EINTR) {
+                        continue;
+                    } else {
+                        fmt::print("IOMgr put data to stdin, write to task stdin failed {}\n",
+                                   strerror(tmpErrno));
+                        break;
+                    }
                 }
+                nWritten += n;
             }
-            nWritten += n;
         }
         break;
     }

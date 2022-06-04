@@ -26,46 +26,46 @@ json CmdMsg::toJson() const {
 
 string CmdMsg::toJsonStr() const { return toJson().dump(); }
 
-CmdMsg CmdMsg::parse(const json &jsonStr) {
-    auto checkKeyWithThrow = [&jsonStr](const char *key) {
-        if (!jsonStr.contains(key))
+CmdMsg CmdMsg::parse(const json &jsonObj) {
+    auto checkKeyWithThrow = [&jsonObj](const char *key) {
+        if (!jsonObj.contains(key))
             throw runtime_error("construct CmdMsg from json failed, key " + string(key) +
                                 " is necessary");
     };
     checkKeyWithThrow(CMDMSG_KEY_CMDTYPE);
-    CmdType cmdType = jsonStr[CMDMSG_KEY_CMDTYPE].get<CmdType>();
+    CmdMsg::Type cmdType = jsonObj[CMDMSG_KEY_CMDTYPE].get<CmdMsg::Type>();
     CmdMsg resMsg{.cmdType = cmdType};
 
     switch (cmdType) {
-    case CREATE_TASK:
+    case CmdMsg::Type::CREATE_TASK:
         checkKeyWithThrow(CMDMSG_KEY_TITLE);
         checkKeyWithThrow(CMDMSG_KEY_SCRIPTCODE);
         checkKeyWithThrow(CMDMSG_KEY_SCRIPTTYPE);
         checkKeyWithThrow(CMDMSG_KEY_INTERVAL);
         checkKeyWithThrow(CMDMSG_KEY_MAXTIMES);
-        resMsg.title = jsonStr[CMDMSG_KEY_TITLE].get<string>();
-        resMsg.scriptCode = jsonStr[CMDMSG_KEY_SCRIPTCODE].get<string>();
-        resMsg.scriptType = jsonStr[CMDMSG_KEY_SCRIPTTYPE].get<TaskScriptType>();
-        resMsg.interval = jsonStr[CMDMSG_KEY_INTERVAL].get<int32_t>();
-        resMsg.maxTimes = jsonStr[CMDMSG_KEY_MAXTIMES].get<int32_t>();
+        resMsg.title = jsonObj[CMDMSG_KEY_TITLE].get<string>();
+        resMsg.scriptCode = jsonObj[CMDMSG_KEY_SCRIPTCODE].get<string>();
+        resMsg.scriptType = jsonObj[CMDMSG_KEY_SCRIPTTYPE].get<TaskScriptType>();
+        resMsg.interval = jsonObj[CMDMSG_KEY_INTERVAL].get<int32_t>();
+        resMsg.maxTimes = jsonObj[CMDMSG_KEY_MAXTIMES].get<int32_t>();
         break;
-    case START_TASK:
-    case STOP_TASK:
-    case DELETE_TASK:
-    case GET_TASK:
-    case ENABLE_REDIRECT:
-    case DISABLE_REDIRECT:
+    case CmdMsg::Type::START_TASK:
+    case CmdMsg::Type::STOP_TASK:
+    case CmdMsg::Type::DELETE_TASK:
+    case CmdMsg::Type::GET_TASK:
+    case CmdMsg::Type::ENABLE_REDIRECT:
+    case CmdMsg::Type::DISABLE_REDIRECT:
         checkKeyWithThrow(CMDMSG_KEY_TASKID);
-        resMsg.taskId = jsonStr[CMDMSG_KEY_TASKID].get<int32_t>();
+        resMsg.taskId = jsonObj[CMDMSG_KEY_TASKID].get<int32_t>();
         break;
-    case PUT_TO_STDIN:
+    case CmdMsg::Type::PUT_TO_STDIN:
         checkKeyWithThrow(CMDMSG_KEY_TASKID);
         checkKeyWithThrow(CMDMSG_KEY_STDINCONTENT);
-        resMsg.taskId = jsonStr[CMDMSG_KEY_TASKID].get<int32_t>();
-        resMsg.stdinContent = jsonStr[CMDMSG_KEY_TASKID].get<string>();
+        resMsg.taskId = jsonObj[CMDMSG_KEY_TASKID].get<int32_t>();
+        resMsg.stdinContent = jsonObj[CMDMSG_KEY_STDINCONTENT].get<string>();
         break;
-    case GET_ALL_TASK:
-    case SHUT_DOWN:
+    case CmdMsg::Type::GET_ALL_TASK:
+    case CmdMsg::Type::SHUT_DOWN:
         break;
     default:
         throw runtime_error("construct CmdMsg failed, invalid cmdType");
@@ -94,7 +94,7 @@ string CmdRes::toJsonStr() const { return toJson().dump(); }
 
 CmdRes CmdRes::parse(const json &jsonData) {
     assert(jsonData.contains(CMDRES_KEY_STATUS));
-    CmdRes res{.status = jsonData[CMDRES_KEY_STATUS].get<CmdResType>()};
+    CmdRes res{.status = jsonData[CMDRES_KEY_STATUS].get<CmdRes::Type>()};
     if (jsonData.contains(CMDRES_KEY_TASKID))
         res.taskId = jsonData[CMDRES_KEY_TASKID].get<int32_t>();
     if (jsonData.contains(CMDRES_KEY_PID))

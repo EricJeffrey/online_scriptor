@@ -4,7 +4,7 @@ constexpr char IODATAMSG_KEY_TASK_ID[] = "taskId";
 constexpr char IODATAMSG_KEY_CONTENT[] = "content";
 constexpr char IODATAMSG_KEY_OUT_OR_ERROR[] = "outOrError";
 
-string IODataMsg::toJson() const {
+string IODataMsg::toJsonStr() const {
     return json::object({
         {IODATAMSG_KEY_TASK_ID, taskId},
         {IODATAMSG_KEY_CONTENT, content},

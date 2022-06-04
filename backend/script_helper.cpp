@@ -1,4 +1,5 @@
 #include "script_helper.hpp"
+#include "config.hpp"
 
 #include <sys/prctl.h>
 #include <sys/stat.h>
@@ -57,9 +58,9 @@ static StartScriptRes startScriptWithIORedir(const string &filePath, int32_t typ
             throw runtime_error("child script, write failed!");
 
         if (type == INTERPRETOR_TYPE_PYTHON)
-            execl("/usr/bin/python3", "python3", filePath.c_str(), nullptr);
+            execl(PYTHON_PATH, "python3", filePath.c_str(), nullptr);
         if (type == INTERPRETOR_TYPE_BASH)
-            execl("/usr/bin/bash", "bash", filePath.c_str(), nullptr);
+            execl(BASH_PATH, "bash", filePath.c_str(), nullptr);
         throw runtime_error("child script, execl failed");
     } else {
         close(pipeStdin[0]), close(pipeStdout[1]), close(pipeStderr[1]);

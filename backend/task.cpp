@@ -25,7 +25,6 @@ Task::Task(const json& data) {
         exitCode = data[TASK_KEY_EXITCODE].get<int32_t>();
         exitTimeStamp = data[TASK_KEY_EXITTIMESTAMP].get<int64_t>();
     } catch (const json::exception &e) {
-        // printf("__DEBUG Task::Task, data: %s\n", data.dump().c_str());
         throw std::runtime_error("create task from json failed, " + string(e.what()));
     }
 }

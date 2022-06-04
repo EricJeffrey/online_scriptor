@@ -44,7 +44,6 @@ json BufferHelper::readOne(int fd) {
         bodyLen += (((u_char)lenBuf[i]) << (i * 8));
     string bodyBuf(bodyLen, 0);
     readN(fd, bodyBuf.data(), bodyLen);
-    // printf("__DEBUG bufferhelper:readone, bodyLen: %d, body: %s\n", bodyLen, bodyBuf.c_str());
     return json::parse(bodyBuf);
 }
 

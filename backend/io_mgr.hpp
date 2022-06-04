@@ -29,7 +29,7 @@ struct IOMgr {
     static void removeFds(array<int, 3> fds);
     static void enableRedirect(array<int, 2> fds);
     static void disableRedirect(array<int, 2> fds);
-    static void putToStdin(int fd, const string& buf);
+    static void putToStdin(int fd, const string &buf);
 };
 
 enum IOMsgType {
@@ -45,7 +45,7 @@ struct IODataMsg {
     int32_t outOrErr;
     string content;
 
-    string toJson() const;
+    string toJsonStr() const;
     static IODataMsg parse(const json &);
 };
 
@@ -73,9 +73,11 @@ struct TaskIOFdHelper {
 
     map<int, IOData> fd2IOData;
 
+    bool hasFd(int fd) { return fd2IOData.find(fd) != fd2IOData.end(); }
+
     // check if fd is inside, throw if not
     void throwIfNotIn(int fd) {
-        if (fd2IOData.find(fd) == fd2IOData.end())
+        if (!hasFd(fd))
             throw runtime_error("taskIOFdHelper: fd not found");
     }
 
@@ -86,31 +88,31 @@ struct TaskIOFdHelper {
     }
 
     bufferevent *removeFd(int fd) {
-        bufferevent *bev = fd2IOData[fd].mBev;
+        bufferevent *bev = fd2IOData.at(fd).mBev;
         fd2IOData.erase(fd);
         return bev;
     }
 
     void setRedirect(int fd, bool on) {
         throwIfNotIn(fd);
-        fd2IOData[fd].mRedirectEnabled = on;
+        fd2IOData.at(fd).mRedirectEnabled = on;
     }
     void enableRedirect(int fd) { setRedirect(fd, true); }
     void disableRedirect(int fd) { setRedirect(fd, false); }
 
     bool isRedirectEnabled(int fd) {
         throwIfNotIn(fd);
-        return fd2IOData[fd].mRedirectEnabled;
+        return fd2IOData.at(fd).mRedirectEnabled;
     }
 
     bufferevent *getBufferEv(int fd) {
         throwIfNotIn(fd);
-        return fd2IOData[fd].mBev;
+        return fd2IOData.at(fd).mBev;
     }
 
     int32_t getTaskId(int fd) {
         throwIfNotIn(fd);
-        return fd2IOData[fd].mTaskId;
+        return fd2IOData.at(fd).mTaskId;
     }
 };
 

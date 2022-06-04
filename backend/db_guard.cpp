@@ -1,6 +1,5 @@
 #include "db_guard.hpp"
-
-constexpr char DB_PATH[] = "/data/online_scriptor/task_db";
+#include "config.hpp"
 
 void DBGuard::open(bool create_if_missing) {
     leveldb::Options options;

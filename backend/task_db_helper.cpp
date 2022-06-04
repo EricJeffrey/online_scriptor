@@ -29,7 +29,6 @@ bool TaskDBHelper::hasTask(int32_t taskId) {
 
 int32_t TaskDBHelper::createTask(const string &title, const string &scriptCode, int32_t scriptType,
                                  int32_t intervalInSec, int32_t maxTimes) {
-    // printf("__DEBUG taskdbhelper.createTask\n");
     Task newTask;
     newTask.title = title;
     newTask.scriptCode = scriptCode;

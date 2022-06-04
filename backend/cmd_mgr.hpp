@@ -65,7 +65,7 @@ public:
     array<int, 3> getFdsByPid(pid_t pid) {
         if (!isPidIn(pid))
             throw runtime_error("get fd by pid failed, pid not found");
-        return pid2RunningTask[pid]->mFds;
+        return pid2RunningTask.at(pid)->mFds;
     }
 
     array<int, 3> getFdsByTaskId(int32_t taskId) {
@@ -77,7 +77,7 @@ public:
     void removeByPid(pid_t pid) {
         if (!isPidIn(pid))
             throw runtime_error("get fd by pid failed, pid not found");
-        int32_t taskId = pid2RunningTask[pid]->mTaskId;
+        int32_t taskId = pid2RunningTask.at(pid)->mTaskId;
         pid2RunningTask.erase(pid);
         taskId2RunningTask.erase(taskId);
     }

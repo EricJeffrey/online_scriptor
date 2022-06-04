@@ -5,9 +5,12 @@
 
 #include "cmd_mgr.hpp"
 #include "cmd_msg.hpp"
+#include "config.hpp"
 #include "io_mgr.hpp"
 #include "script_helper.hpp"
 #include "task_db_helper.hpp"
+
+#include "fmt/core.h"
 
 #include <csignal>
 #include <fstream>
@@ -23,20 +26,17 @@ bufferevent *CmdMgr::bevCmdSock = nullptr;
 RunningTaskHelper CmdMgr::runningTaskHelper;
 BufferHelper CmdMgr::bufferHelper;
 
-constexpr char SCRIPT_ROOT_PATH[] = "/data/online_scriptor/";
-
 CmdRes createTask(const CmdMsg &msg) {
-    // printf("__DEBUG cmd_mgr:createTask\n");
     int32_t newTaskId = TaskDBHelper::createTask(msg.title, msg.scriptCode, msg.scriptType,
                                                  msg.interval, msg.maxTimes);
-    return CmdRes{.status = CmdResType::OK, .taskId = newTaskId};
+    return CmdRes{.status = CmdRes::Type::OK, .taskId = newTaskId};
 }
 
 CmdRes startTask(const CmdMsg &msg) {
     if (!TaskDBHelper::hasTask(msg.taskId))
-        return CmdRes{.status = CmdResType::NO_SUCH_TASK};
+        return CmdRes{.status = CmdRes::Type::NO_SUCH_TASK};
     if (CmdMgr::runningTaskHelper.isTaskRunning(msg.taskId))
-        return CmdRes{.status = CmdResType::TASK_IS_RUNNING};
+        return CmdRes{.status = CmdRes::Type::TASK_IS_RUNNING};
     Task task = TaskDBHelper::getTask(msg.taskId);
     const string filePath = SCRIPT_ROOT_PATH + std::to_string(task.id);
     std::ofstream ofs(filePath);
@@ -60,15 +60,17 @@ CmdRes startTask(const CmdMsg &msg) {
     newTask.status = TaskStatus::RUNNING;
     TaskDBHelper::updateTask(task.id, newTask);
 
-    return CmdRes{.status = CmdResType::OK};
+    return CmdRes{.status = CmdRes::Type::OK};
 }
 
 CmdRes stopTask(const CmdMsg &msg) {
+    if (!TaskDBHelper::hasTask(msg.taskId))
+        return CmdRes{.status = CmdRes::Type::NO_SUCH_TASK};
     if (CmdMgr::runningTaskHelper.isTaskRunning(msg.taskId)) {
-        kill(CmdMgr::runningTaskHelper.taskId2RunningTask[msg.taskId]->mPid, SIGKILL);
-        return CmdRes{.status = CmdResType::OK};
+        kill(CmdMgr::runningTaskHelper.taskId2RunningTask.at(msg.taskId)->mPid, SIGKILL);
+        return CmdRes{.status = CmdRes::Type::OK};
     }
-    return CmdRes{.status = CmdResType::TASK_NOT_RUNNING};
+    return CmdRes{.status = CmdRes::Type::TASK_NOT_RUNNING};
 }
 
 CmdRes deleteTask(const CmdMsg &msg) {
@@ -77,9 +79,9 @@ CmdRes deleteTask(const CmdMsg &msg) {
     }
     if (TaskDBHelper::hasTask(msg.taskId)) {
         TaskDBHelper::deleteTask(msg.taskId);
-        return CmdRes{.status = CmdResType::OK};
+        return CmdRes{.status = CmdRes::Type::OK};
     } else {
-        return CmdRes{.status = CmdResType::NO_SUCH_TASK};
+        return CmdRes{.status = CmdRes::Type::NO_SUCH_TASK};
     }
 }
 
@@ -87,48 +89,47 @@ CmdRes enableIORedirect(const CmdMsg &msg) {
     if (CmdMgr::runningTaskHelper.isTaskRunning(msg.taskId)) {
         auto fds = CmdMgr::runningTaskHelper.getFdsByTaskId(msg.taskId);
         IOMgr::enableRedirect({fds[1], fds[2]});
-        return CmdRes{.status = CmdResType::OK};
+        return CmdRes{.status = CmdRes::Type::OK};
     }
-    return CmdRes{.status = CmdResType::TASK_NOT_RUNNING};
+    return CmdRes{.status = CmdRes::Type::TASK_NOT_RUNNING};
 }
 
 CmdRes disableIORedirect(const CmdMsg &msg) {
     if (CmdMgr::runningTaskHelper.isTaskRunning(msg.taskId)) {
         auto fds = CmdMgr::runningTaskHelper.getFdsByTaskId(msg.taskId);
         IOMgr::disableRedirect({fds[1], fds[2]});
-        return CmdRes{.status = CmdResType::OK};
+        return CmdRes{.status = CmdRes::Type::OK};
     }
-    return CmdRes{.status = CmdResType::TASK_NOT_RUNNING};
+    return CmdRes{.status = CmdRes::Type::TASK_NOT_RUNNING};
 }
 
 CmdRes putToTaskInput(const CmdMsg &msg) {
     if (CmdMgr::runningTaskHelper.isTaskRunning(msg.taskId)) {
         int fdIn = CmdMgr::runningTaskHelper.getFdsByTaskId(msg.taskId).at(0);
         IOMgr::putToStdin(fdIn, msg.stdinContent);
-        return CmdRes{.status = CmdResType::OK};
+        return CmdRes{.status = CmdRes::Type::OK};
     }
-    return CmdRes{.status = CmdResType::TASK_NOT_RUNNING};
+    return CmdRes{.status = CmdRes::Type::TASK_NOT_RUNNING};
 }
 
 CmdRes getTask(const CmdMsg &msg) {
     if (TaskDBHelper::hasTask(msg.taskId)) {
         return CmdRes{
-            .status = CmdResType::OK,
+            .status = CmdRes::Type::OK,
             .task = TaskDBHelper::getTask(msg.taskId),
         };
     }
-    return CmdRes{.status = CmdResType::NO_SUCH_TASK};
+    return CmdRes{.status = CmdRes::Type::NO_SUCH_TASK};
 }
 
 CmdRes getAllTask(const CmdMsg &msg) {
     return CmdRes{
-        .status = CmdResType::OK,
+        .status = CmdRes::Type::OK,
         .taskList = TaskDBHelper::getAllTask(),
     };
 }
 
 void writeBackCmdRes(const CmdRes &cmdRes) {
-    // printf("__DEBUG cmd_mgr: writebackcmdres, data: %s\n", cmdRes.toJsonStr().c_str());
     string data = BufferHelper::make(cmdRes.toJsonStr());
     int res = bufferevent_write(CmdMgr::bevCmdSock, data.data(), data.size());
     assert(res != -1);
@@ -138,56 +139,46 @@ void handleCmdMsg(const CmdMsg &msg) {
     try {
         CmdRes resMsg;
         switch (msg.cmdType) {
-        case CmdType::CREATE_TASK:
-            printf("Ok I Will CREATE_TASK, msg: %s\n", msg.toJsonStr().c_str());
+        case CmdMsg::Type::CREATE_TASK:
             resMsg = createTask(msg);
             break;
-        case CmdType::START_TASK:
-            printf("Ok I Will START_TASK, msg: %s\n", msg.toJsonStr().c_str());
+        case CmdMsg::Type::START_TASK:
             resMsg = startTask(msg);
             break;
-        case CmdType::STOP_TASK:
-            printf("Ok I Will STOP_TASK, msg: %s\n", msg.toJsonStr().c_str());
+        case CmdMsg::Type::STOP_TASK:
             resMsg = stopTask(msg);
             break;
-        case CmdType::DELETE_TASK:
-            printf("Ok I Will DELETE_TASK, msg: %s\n", msg.toJsonStr().c_str());
+        case CmdMsg::Type::DELETE_TASK:
             resMsg = deleteTask(msg);
             break;
-        case CmdType::GET_TASK:
-            printf("Ok I Will GET_TASK, msg: %s\n", msg.toJsonStr().c_str());
+        case CmdMsg::Type::GET_TASK:
             resMsg = getTask(msg);
             break;
-        case CmdType::GET_ALL_TASK:
-            printf("Ok I Will GET_ALL_TASK, msg: %s\n", msg.toJsonStr().c_str());
+        case CmdMsg::Type::GET_ALL_TASK:
             resMsg = getAllTask(msg);
             break;
-        case CmdType::ENABLE_REDIRECT:
-            printf("Ok I Will ENABLE_REDIRECT, msg: %s\n", msg.toJsonStr().c_str());
+        case CmdMsg::Type::ENABLE_REDIRECT:
             resMsg = enableIORedirect(msg);
             break;
-        case CmdType::DISABLE_REDIRECT:
-            printf("Ok I Will DISABLE_REDIRECT, msg: %s\n", msg.toJsonStr().c_str());
+        case CmdMsg::Type::DISABLE_REDIRECT:
             resMsg = disableIORedirect(msg);
             break;
-        case CmdType::PUT_TO_STDIN:
-            printf("Ok I Will PUT_TO_STDIN, msg: %s\n", msg.toJsonStr().c_str());
+        case CmdMsg::Type::PUT_TO_STDIN:
             resMsg = putToTaskInput(msg);
             break;
-        case CmdType::SHUT_DOWN:
-            printf("Ok I Will SHUT_DOWN, msg: %s\n", msg.toJsonStr().c_str());
+        case CmdMsg::Type::SHUT_DOWN:
             CmdMgr::stop();
-            resMsg.status = CmdResType::OK;
+            resMsg.status = CmdRes::Type::OK;
             break;
         default:
-            printf("handle cmdmsg: invalid msg type, ignored\n");
-            resMsg.status = CmdResType::INVALID_CMD_TYPE;
+            fmt::print("handle cmdmsg: invalid msg type, ignored\n");
+            resMsg.status = CmdRes::Type::INVALID_CMD_TYPE;
             break;
         }
         writeBackCmdRes(resMsg);
     } catch (const std::exception &e) {
-        fprintf(stderr, "Handle CmdMsg failed, %s\n", e.what());
-        writeBackCmdRes(CmdRes{.status = CmdResType::FAILED});
+        fmt::print("Handle CmdMsg failed, {}\n", e.what());
+        writeBackCmdRes(CmdRes{.status = CmdRes::Type::FAILED});
     }
 }
 
@@ -196,14 +187,14 @@ void onCmdSockReadCb(bufferevent *bev, void *arg) {
     size_t n = 0;
     while ((n = bufferevent_read(bev, data, BUFSIZ)) > 0) {
         auto jsonList = CmdMgr::bufferHelper.tryFullFill(data, n);
-        for (auto &&jsonStr : jsonList)
-            handleCmdMsg(CmdMsg::parse(jsonStr));
+        for (auto &&jsonObj : jsonList)
+            handleCmdMsg(CmdMsg::parse(jsonObj));
     }
 }
 
 void onCmdSockEventCb(bufferevent *bev, short events, void *arg) {
     if (events & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) {
-        printf("CmdMgr: ERROR or EOF on cmdSock, shutting down CmdMgr\n");
+        fmt::print("CmdMgr: ERROR or EOF on cmdSock, shutting down CmdMgr\n");
         bufferevent_free(bev);
         event_base_loopexit(CmdMgr::base, nullptr);
     }
@@ -218,8 +209,8 @@ void onSIGCHILDCb(evutil_socket_t fd, short events, void *arg) {
         while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
             auto fds = CmdMgr::runningTaskHelper.getFdsByPid(pid);
             IOMgr::removeFds(fds);
+            int32_t taskId = CmdMgr::runningTaskHelper.pid2RunningTask.at(pid)->mTaskId;
             CmdMgr::runningTaskHelper.removeByPid(pid);
-            int32_t taskId = CmdMgr::runningTaskHelper.pid2RunningTask[pid]->mTaskId;
             Task newTask = TaskDBHelper::getTask(taskId);
             newTask.exitCode = WEXITSTATUS(status);
             newTask.exitTimeStamp = timestamp;
@@ -254,7 +245,6 @@ void CmdMgr::start(int sock) {
     // write 1 byte to let the parent know we are ready to go
     {
         while (true) {
-            // printf("__DEBUG cmd_mgr writing notification\n");
             int res = write(CmdMgr::cmdSock, "1", 1);
             if (res == 1)
                 break;

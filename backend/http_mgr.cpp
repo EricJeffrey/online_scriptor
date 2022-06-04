@@ -1,11 +1,13 @@
 #include "http_mgr.hpp"
+#include "config.hpp"
 
 #include "uWebSockets/App.h"
 #include <thread>
 
+#include "fmt/format.h"
+
 using std::string_view, std::thread;
 
-const int32_t HttpMgr::PORT = 8000;
 map<int32_t, PerWsData *> HttpMgr::taskId2WsData;
 int HttpMgr::mIOSock = 0;
 int HttpMgr::mCmdSock = 0;
@@ -50,13 +52,13 @@ void HttpMgr::start(int cmdSock, int ioSock) {
                                HttpMgr::taskId2WsData.erase(ws->getUserData()->taskId);
                            },
                    })
-        .listen(HttpMgr::PORT,
+        .listen(PORT,
                 [](us_listen_socket_t *listenSock) {
                     if (listenSock)
-                        printf("http server started, listening on port %d\n", PORT);
+                        fmt::print("http server started, listening on port {}\n", PORT);
                 })
         .run();
-    printf("HttpMgr: http server exited, waiting websocket io data Thread\n");
+    fmt::print("HttpMgr: http server exited, waiting websocket io data Thread\n");
     close(HttpMgr::mIOSock), close(HttpMgr::mCmdSock);
     wsThread.join();
 }
