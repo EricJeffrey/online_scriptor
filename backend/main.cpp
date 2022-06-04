@@ -188,6 +188,31 @@ print(\"over\")\n\
         testOne(CmdMsg{
             .cmdType = CmdMsg::Type::PUT_TO_STDIN, .taskId = 3, .stdinContent = "rainnnnnnnnn\n"});
 
+        testOne(CmdMsg{.cmdType = CmdMsg::Type::CREATE_TASK,
+                       .title = "hello world 2",
+                       .scriptCode =
+                           "import time;\nfor i in range(20):\n    print('!!=_=!! ', i, "
+                           "flush=True);\n    time.sleep(1)\n\nprint('over')\n",
+                       .scriptType = TaskScriptType::PYTHON,
+                       .interval = 10,
+                       .maxTimes = 10},
+                CmdRes::Type::OK);
+
+        testOne(CmdMsg{.cmdType = CmdMsg::Type::START_TASK, .taskId = 4});
+
+        fmt::print("waiting for 31 sec, STAY CALM\n");
+        sleep(31);
+        testOne(CmdMsg{.cmdType = CmdMsg::Type::ENABLE_REDIRECT, .taskId = 4});
+
+        sleep(1);
+        testOne(CmdMsg{.cmdType = CmdMsg::Type::DISABLE_REDIRECT, .taskId = 4});
+
+        sleep(1);
+        testOne(CmdMsg{.cmdType = CmdMsg::Type::ENABLE_REDIRECT, .taskId = 4});
+
+        sleep(1);
+        testOne(CmdMsg{.cmdType = CmdMsg::Type::STOP_TASK, .taskId = 4});
+
         fmt::print("---------- test done ----------\n");
     }
     close(cmdSocks[0]), close(ioSocks[0]);

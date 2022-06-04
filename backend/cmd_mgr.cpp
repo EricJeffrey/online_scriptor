@@ -23,8 +23,9 @@ int CmdMgr::cmdSock = -1;
 event_base *CmdMgr::base = nullptr;
 event *CmdMgr::evChild = nullptr;
 bufferevent *CmdMgr::bevCmdSock = nullptr;
-RunningTaskHelper CmdMgr::runningTaskHelper;
 BufferHelper CmdMgr::bufferHelper;
+RunningTaskHelper CmdMgr::runningTaskHelper;
+ScheduledTaskHelper CmdMgr::schedTaskHelper;
 
 CmdRes createTask(const CmdMsg &msg) {
     int32_t newTaskId = TaskDBHelper::createTask(msg.title, msg.scriptCode, msg.scriptType,
@@ -200,6 +201,16 @@ void onCmdSockEventCb(bufferevent *bev, short events, void *arg) {
     }
 }
 
+void onTimerEvent(evutil_socket_t, short events, void *arg) {
+    CmdMsg *msg = (CmdMsg *)arg;
+    if (events & EV_TIMEOUT)
+        handleCmdMsg(*msg);
+    event *ev = CmdMgr::schedTaskHelper.remove(msg->taskId);
+    if (ev != nullptr)
+        event_free(ev);
+    delete msg;
+}
+
 void onSIGCHILDCb(evutil_socket_t fd, short events, void *arg) {
     time_t timestamp = time(nullptr);
     if (events & EV_SIGNAL) {
@@ -217,7 +228,15 @@ void onSIGCHILDCb(evutil_socket_t fd, short events, void *arg) {
             newTask.status = TaskStatus::IDLE;
             newTask.pid = -1;
             TaskDBHelper::updateTask(taskId, newTask);
-            // TODO 设定间隔 task.interval 之后的timer
+            if (newTask.exitCode == 0 && newTask.intervalInSec > 0 &&
+                newTask.timesExecuted < newTask.maxTimes) {
+                event *ev =
+                    evtimer_new(CmdMgr::base, onTimerEvent,
+                                (new CmdMsg{.cmdType = CmdMsg::Type::START_TASK, taskId = taskId}));
+                timeval tv{.tv_sec = newTask.intervalInSec, .tv_usec = 0};
+                evtimer_add(ev, &tv);
+                CmdMgr::schedTaskHelper.set(taskId, ev);
+            }
         }
     }
 }

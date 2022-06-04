@@ -94,9 +94,8 @@ void onMsgEventCb(evutil_socket_t, short events, void *arg) {
         IOMgr::taskIOFdHelper.add(msg->taskId, msg->fd, bev);
         break;
     case REMOVE_FD:
-        bev = IOMgr::taskIOFdHelper.removeFd(msg->fd);
-        if (bev != nullptr)
-            bufferevent_free(bev);
+        IOMgr::taskIOFdHelper.removeFd(msg->fd);
+        // NOTE fd 对应的 bufferevent 在进程结束的时候就触发 EOF/ERROR 被free掉了
         break;
     case ENABLE_FD_REDIRECT:
         IOMgr::taskIOFdHelper.enableRedirect(msg->fd);

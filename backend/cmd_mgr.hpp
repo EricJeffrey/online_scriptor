@@ -18,17 +18,41 @@ using std::array, std::shared_ptr;
 using std::string, std::map, std::runtime_error, std::vector;
 
 struct RunningTaskHelper;
+struct ScheduledTaskHelper;
 
 struct CmdMgr {
     static int cmdSock;
     static event_base *base;
     static event *evChild;
     static bufferevent *bevCmdSock;
-    static RunningTaskHelper runningTaskHelper;
     static BufferHelper bufferHelper;
+    static RunningTaskHelper runningTaskHelper;
+    static ScheduledTaskHelper schedTaskHelper;
 
     static void start(int cmdSock);
     static void stop();
+};
+
+struct ScheduledTaskHelper {
+    map<int32_t, event *> taskId2Event;
+
+    bool hasTask(int32_t taskId) { return taskId2Event.find(taskId) != taskId2Event.end(); }
+
+    event *set(int32_t taskId, event *ev) {
+        event *res = nullptr;
+        if (hasTask(taskId))
+            res = taskId2Event[taskId];
+        taskId2Event[taskId] = ev;
+        return res;
+    }
+
+    event *remove(int32_t taskId) {
+        event *res = nullptr;
+        if (hasTask(taskId))
+            res = taskId2Event[taskId];
+        taskId2Event.erase(taskId);
+        return res;
+    }
 };
 
 struct RunningTaskHelper {
