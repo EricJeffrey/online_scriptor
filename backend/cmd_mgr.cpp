@@ -269,7 +269,7 @@ void CmdMgr::start(int sock) {
     // write 1 byte to let the parent know we are ready to go
     {
         while (true) {
-            int res = write(CmdMgr::cmdSock, "1", 1);
+            ssize_t res = write(CmdMgr::cmdSock, "1", 1);
             if (res == 1)
                 break;
             if (res == -1 && (errno == EWOULDBLOCK || errno == EAGAIN))

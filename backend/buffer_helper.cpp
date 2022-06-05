@@ -61,5 +61,5 @@ string BufferHelper::make(string &&jsonData) {
 
 void BufferHelper::writeOne(int fd, const json &data) {
     const string &s = make(data.dump());
-    writeN(fd, s.data(), s.size());
+    writeN(fd, s.data(), (int32_t)s.size());
 }

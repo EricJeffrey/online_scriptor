@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MockTest</title>
+    <style>
+        pre {
+            margin: 5px;
+            border: 1px solid gray;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <script>
+        const GET_ALL_TASK = 0;
+        const GET_TASK = 1;
+        const START_TASK = 2;
+        const STOP_TASK = 3;
+        const DELETE_TASK = 4;
+        const DISABLE_REDIRECT = 5;
+        const ENABLE_REDIRECT = 6;
+        const CREATE_TASK = 7;
+        const PUT_TO_STDIN = 8;
+
+        const CmdType2Url = [
+            "/task/all", "/task", "/task/start", "/task/stop", "/task/delete",
+            "/task/ioredirect/disable", "/task/ioredirect/enable", "/task/create", "/task/puttostdin"
+        ];
+
+        const CmdResType2Str = [
+            "OK", "TASK_NOT_RUNNING", "NO_SUCH_TASK",
+            "TASK_IS_RUNNING", "FAILED", "INVALID_CMD_TYPE"
+        ];
+
+
+        var testList = [
+            { cmdType: GET_ALL_TASK },
+            { cmdType: GET_TASK, taskId: 10 },
+            { cmdType: START_TASK, taskId: 10 },
+            { cmdType: DELETE_TASK, taskId: 10 },
+            { cmdType: STOP_TASK, taskId: 10 },
+            {
+                cmdType: CREATE_TASK,
+                title: "hello world",
+                scriptCode: "import time;\nfor i in range(20):\n    print('hello world: ', i, flush=True);\n    time.sleep(1)\n\nprint('over')\n",
+                scriptType: 0,
+                interval: -1,
+                maxTimes: 1
+            },
+            {
+                cmdType: CREATE_TASK,
+                title: "hello world 2",
+                scriptCode: "import time;\nfor i in range(10):\n    print('hello world: ', i, flush=True);\n    time.sleep(1)\n\nprint('over')\n",
+                scriptType: 0,
+                interval: 10 * 60,
+                maxTimes: 10
+            },
+            { cmdType: GET_ALL_TASK },
+            { cmdType: GET_TASK, taskId: 10 },
+            { cmdType: GET_TASK, taskId: 1 },
+            { cmdType: START_TASK, taskId: 10 },
+            { cmdType: ENABLE_REDIRECT, taskId: 10 },
+            { cmdType: ENABLE_REDIRECT, taskId: 2 },
+            { cmdType: DISABLE_REDIRECT, taskId: 1 },
+            { cmdType: START_TASK, taskId: 1 },
+            { cmdType: ENABLE_REDIRECT, taskId: 1 },
+            { cmdType: DISABLE_REDIRECT, taskId: 1, sleep: 3 },
+            {
+                cmdType: CREATE_TASK,
+                title: "echo world",
+                scriptCode: "import time\n\
+for i in range(10):\n\
+print('lets see somthing first', flush=True)\n\
+x = input(\"say something:\")\n\
+print(\"you say {}\".format(x), flush=True)\n\
+time.sleep(1)\n\
+print(\"over\")\n\
+",
+                scriptType: 0,
+                interval: 10,
+                maxTimes: 1
+            },
+            { cmdType: START_TASK, taskId: 30 },
+            { cmdType: START_TASK, taskId: 3 },
+            { cmdType: ENABLE_REDIRECT, taskId: 3 },
+            { cmdType: PUT_TO_STDIN, taskId: 3, stdinContent: "rainnnnnnnnn\n", },
+            {
+                cmdType: CREATE_TASK,
+                title: "hello world 2",
+                scriptCode: "import time;\nfor i in range(20):\n    print('!!=_=!! ', i, flush=True);\n    time.sleep(1)\n\nprint('over')\n",
+                scriptType: 0,
+                interval: 10,
+                maxTimes: 10
+            },
+            { cmdType: START_TASK, taskId: 4 },
+            { cmdType: ENABLE_REDIRECT, taskId: 4, sleep: 31 },
+            { cmdType: DISABLE_REDIRECT, taskId: 4, sleep: 1 },
+            { cmdType: ENABLE_REDIRECT, taskId: 4, sleep: 1 },
+            { cmdType: DELETE_TASK, taskId: 4, sleep: 1 },
+            { cmdType: STOP_TASK, taskId: 4 },
+        ];
+        let x = 0;
+
+        function putRes(obj, error = false) {
+            let p = document.createElement("pre");
+            if (error)
+                p.classList.add("error");
+            p.innerText = "No." + x + "\n" +
+                "Cmd: " + CmdType2Url[testList[x].cmdType] + ", " +
+                "taskId: " + testList[x].taskId + "\n" +
+                CmdResType2Str[obj['status']] + "\n" +
+                JSON.stringify(obj, null, 2);
+            document.body.appendChild(p);
+            p.scrollIntoView();
+        };
+
+        function handleFetch(fetchRes) {
+            return fetchRes.then((resp) => {
+                if (resp.status == 200)
+                    return resp.json();
+                else
+                    putRes({ status: resp.status, statusText: resp.statusText }, true);
+            }, (reason) => {
+                putRes("NETWORK ERROR: " + JSON.stringify(reason), true);
+                console.error(reason);
+            }).then((v) => {
+                putRes(v);
+            });
+        };
+
+        function createTask(obj) {
+            return handleFetch(
+                fetch(CmdType2Url[CREATE_TASK], {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        title: obj.title,
+                        scriptCode: obj.scriptCode,
+                        scriptType: obj.scriptType,
+                        interval: obj.interval,
+                        maxTimes: obj.maxTimes,
+                    })
+                })
+            );
+        };
+
+        function getAllTask() { return handleFetch(fetch(CmdType2Url[GET_ALL_TASK])); };
+
+        function taskOpImpl(url, taskId) {
+            return handleFetch(fetch(url + "?taskId=" + taskId));
+        };
+
+        function putToStdin(obj) {
+            return handleFetch(fetch(CmdType2Url[PUT_TO_STDIN], {
+                method: 'POST',
+                body: JSON.stringify({
+                    taskId: obj.taskId,
+                    stdinContent: obj.stdinContent
+                })
+            }));
+        };
+
+        let taskId2Ws = {};
+        function makeNewWs(taskId) {
+            console.log("makeNewWs: " + taskId);
+            let ws = new WebSocket("ws://" + window.location.origin.substr(7) + "/ws?taskId=" + taskId);
+            taskId2Ws[taskId.toString()] = ws;
+            ws.onmessage = function (ev) {
+                console.info("Ws message: " + JSON.stringify(ev.data));
+            }
+        }
+        function removeWs(taskId) {
+            console.log("removeWs: " + taskId);
+            if (toString(taskId) in taskId2Ws)
+                taskId2Ws[taskId.toString()].close();
+        }
+
+        function testOne(obj) {
+            switch (obj.cmdType) {
+                case CREATE_TASK:
+                    return createTask(obj);
+                case GET_ALL_TASK:
+                    return getAllTask();
+                case START_TASK:
+                case STOP_TASK:
+                case DELETE_TASK:
+                case GET_TASK:
+                    return taskOpImpl(CmdType2Url[obj.cmdType], obj.taskId);
+                case ENABLE_REDIRECT:
+                    makeNewWs(obj.taskId);
+                    return taskOpImpl(CmdType2Url[obj.cmdType], obj.taskId);
+                case DISABLE_REDIRECT:
+                    removeWs(obj.taskId);
+                    return taskOpImpl(CmdType2Url[obj.cmdType], obj.taskId);
+                case PUT_TO_STDIN:
+                    return putToStdin(obj);
+            }
+        };
+
+        function start() {
+            console.log("start: " + x);
+            testOne(testList[x]).then(() => {
+                x += 1;
+                if (x >= testList.length)
+                    return;
+                let sleepTime = 0;
+                if (testList[x].hasOwnProperty("sleep"))
+                    sleepTime += testList[x].sleep;
+                setTimeout(() => {
+                    start();
+                }, sleepTime * 1000);
+            });
+        }
+        start();
+
+    </script>
+</body>
+
+</html>

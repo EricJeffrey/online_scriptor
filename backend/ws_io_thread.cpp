@@ -9,9 +9,7 @@
 void wsIODataThread(int ioSock) {
     try {
         while (true) {
-            // IODataMsg msg = IODataMsg::parse(BufferHelper::readOne(ioSock));
-            usleep(200000);
-            IODataMsg msg = {.taskId = 0, .outOrErr = 1, .content = "mock data HELLO WORLD\n"};
+            IODataMsg msg = IODataMsg::parse(BufferHelper::readOne(ioSock));
             bool ok = HttpMgr::taskWsHelper.sendMsgOnTaskWs(msg.taskId, msg.toJsonStr());
             if (!ok)
                 fmt::print("WsIOThread, send msg failed, ws probably closed\n", msg.taskId);

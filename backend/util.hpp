@@ -13,18 +13,18 @@
 using std::string, std::runtime_error;
 
 inline void writeN(int fd, const char *data, int32_t n) {
-    int32_t nWritten = 0;
+    ssize_t nWritten = 0;
     while (nWritten < n) {
-        int32_t res = write(fd, data + nWritten, n - nWritten);
+        ssize_t res = write(fd, data + nWritten, n - nWritten);
         if (res == -1 && errno != EINTR)
             throw runtime_error("writeN: write failed!" + string(strerror(errno)));
         nWritten += res;
     }
 }
 inline void readN(int fd, char *buf, int32_t n) {
-    int32_t nRead = 0;
+    ssize_t nRead = 0;
     while (nRead < n) {
-        int res = read(fd, buf + nRead, n - nRead);
+        ssize_t res = read(fd, buf + nRead, n - nRead);
         if (res == -1 && errno == EINTR)
             continue;
         if (res == -1)
@@ -41,6 +41,20 @@ inline bool filePathOk(const string &filePath) {
         res = false;
     if (!S_ISREG(statBuf.st_mode))
         res = false;
+    return res;
+}
+
+inline bool endsWith(const string &s, const string &target) {
+    bool res = true;
+    if (s.size() >= target.size()) {
+        for (size_t i = 0; i < target.size(); i++)
+            if (s[s.size() - target.size() + i] != target[i]) {
+                res = false;
+                break;
+            }
+    } else {
+        res = false;
+    }
     return res;
 }
 
