@@ -1,5 +1,6 @@
 #include "script_helper.hpp"
 #include "config.hpp"
+#include "util.hpp"
 
 #include <sys/prctl.h>
 #include <sys/stat.h>
@@ -9,17 +10,6 @@
 
 const int32_t INTERPRETOR_TYPE_PYTHON = 1;
 const int32_t INTERPRETOR_TYPE_BASH = 2;
-
-// check if filePath exist and is regular file
-bool filePathOk(const string &filePath) {
-    struct stat statBuf;
-    bool res = true;
-    if (stat(filePath.c_str(), &statBuf) == -1)
-        res = false;
-    if (!S_ISREG(statBuf.st_mode))
-        res = false;
-    return res;
-}
 
 /**
  * @brief 使用 type 指定的解释器执行 filePath 的脚本，返回重定向的输入和输出管道

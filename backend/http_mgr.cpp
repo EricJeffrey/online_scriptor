@@ -33,10 +33,16 @@ constexpr char HTTP_KEY_INTERVAL[] = "interval";
 constexpr char HTTP_KEY_MAX_TIMES[] = "maxTimes";
 constexpr char HTTP_KEY_STDIN_CONTENT[] = "stdinContent";
 
-map<int32_t, PerWsData *> HttpMgr::taskId2WsData;
+TaskWsHelper HttpMgr::taskWsHelper;
 int HttpMgr::mIOSock = 0;
 int HttpMgr::mCmdSock = 0;
 
+// send msg to TaskMgr but ignore response
+void sendCmdToTaskMgr(int fd, const CmdMsg &msg) {
+    BufferHelper::writeOne(fd, msg.toJson());
+}
+
+// send msg to TaskMgr and wait for response
 CmdRes awaitTaskMgrRes(int fd, const CmdMsg &msg) {
     BufferHelper::writeOne(fd, msg.toJson());
     return CmdRes::parse(BufferHelper::readOne(fd));
@@ -54,8 +60,37 @@ optional<int> checkTaskId(HttpResponseNoSSL *res, HttpRequest *req) {
         if (!taskIdParam.empty())
             return stoi(string(taskIdParam));
     } catch (std::exception &) {
+        writeHttpResp(res, CmdRes{.status = CmdRes::FAILED}, HTTP_400);
     }
     return std::nullopt;
+}
+
+void taskOpDelegate(HttpResponseNoSSL *res, HttpRequest *req, CmdMsg::Type cmdType) {
+    auto taskIdOpt = checkTaskId(res, req);
+    if (taskIdOpt.has_value()) {
+        writeHttpResp(res, awaitTaskMgrRes(HttpMgr::mCmdSock, CmdMsg{.cmdType = cmdType,
+                                                                     .taskId = taskIdOpt.value()}));
+    }
+}
+
+// read file content and send to res, send 404 if file not found or not regular
+void serveFile(const string &fpath, HttpResponseNoSSL *res) {
+    if (filePathOk(fpath)) {
+        res->writeStatus(HTTP_200);
+        constexpr int bufsz = 4096;
+        char buf[bufsz];
+        string data;
+        FILE *file = fopen(fpath.c_str(), "rt");
+        while (!feof(file)) {
+            size_t n = fread(buf, 1, bufsz, file);
+            data.append(buf, n);
+        }
+        fclose(file);
+        res->end(data);
+    } else {
+        res->writeStatus(HTTP_404);
+        res->end("资源未找到");
+    }
 }
 
 void HttpMgr::start(int cmdSock, int ioSock) {
@@ -65,12 +100,7 @@ void HttpMgr::start(int cmdSock, int ioSock) {
     auto wsThread = thread(wsIODataThread, ioSock);
 
     auto getTask = [](HttpResponseNoSSL *res, HttpRequest *req) {
-        auto taskIdOpt = checkTaskId(res, req);
-        if (taskIdOpt.has_value()) {
-            writeHttpResp(res,
-                          awaitTaskMgrRes(HttpMgr::mCmdSock, CmdMsg{.cmdType = CmdMsg::GET_TASK,
-                                                                    .taskId = taskIdOpt.value()}));
-        }
+        taskOpDelegate(res, req, CmdMsg::GET_TASK);
     };
 
     auto getAllTask = [](HttpResponseNoSSL *res, HttpRequest *req) {
@@ -106,55 +136,23 @@ void HttpMgr::start(int cmdSock, int ioSock) {
     };
 
     auto startTask = [](HttpResponseNoSSL *res, HttpRequest *req) {
-
+        taskOpDelegate(res, req, CmdMsg::START_TASK);
     };
 
     auto stopTask = [](HttpResponseNoSSL *res, HttpRequest *req) {
-        auto taskIdOpt = checkTaskId(res, req);
-        if (taskIdOpt.has_value()) {
-            res->end(awaitTaskMgrRes(HttpMgr::mCmdSock,
-                                     CmdMsg{
-                                         .cmdType = CmdMsg::STOP_TASK,
-                                         .taskId = taskIdOpt.value(),
-                                     })
-                         .toJsonStr());
-        }
+        taskOpDelegate(res, req, CmdMsg::STOP_TASK);
     };
 
     auto deleteTask = [](HttpResponseNoSSL *res, HttpRequest *req) {
-        auto taskIdOpt = checkTaskId(res, req);
-        if (taskIdOpt.has_value()) {
-            res->end(awaitTaskMgrRes(HttpMgr::mCmdSock,
-                                     CmdMsg{
-                                         .cmdType = CmdMsg::DELETE_TASK,
-                                         .taskId = taskIdOpt.value(),
-                                     })
-                         .toJsonStr());
-        }
+        taskOpDelegate(res, req, CmdMsg::DELETE_TASK);
     };
 
     auto enableIORedirect = [](HttpResponseNoSSL *res, HttpRequest *req) {
-        auto taskIdOpt = checkTaskId(res, req);
-        if (taskIdOpt.has_value()) {
-            res->end(awaitTaskMgrRes(HttpMgr::mCmdSock,
-                                     CmdMsg{
-                                         .cmdType = CmdMsg::ENABLE_REDIRECT,
-                                         .taskId = taskIdOpt.value(),
-                                     })
-                         .toJsonStr());
-        }
+        taskOpDelegate(res, req, CmdMsg::ENABLE_REDIRECT);
     };
 
     auto disableIORedirect = [](HttpResponseNoSSL *res, HttpRequest *req) {
-        auto taskIdOpt = checkTaskId(res, req);
-        if (taskIdOpt.has_value()) {
-            res->end(awaitTaskMgrRes(HttpMgr::mCmdSock,
-                                     CmdMsg{
-                                         .cmdType = CmdMsg::DISABLE_REDIRECT,
-                                         .taskId = taskIdOpt.value(),
-                                     })
-                         .toJsonStr());
-        }
+        taskOpDelegate(res, req, CmdMsg::DISABLE_REDIRECT);
     };
 
     auto putToStdin = [](HttpResponseNoSSL *res, HttpRequest *req) {
@@ -181,30 +179,20 @@ void HttpMgr::start(int cmdSock, int ioSock) {
         });
     };
 
-    auto serveFile = [](HttpResponseNoSSL *res, HttpRequest *req) {
-        const string fpath =
-            string(STATIC_FILE_DIR_PATH) + string(req->getUrl().substr(STATIC_FILE_PREFIX.size()));
-        if (filePathOk(fpath)) {
-            res->writeStatus(HTTP_200);
-            constexpr int bufsz = 4096;
-            char buf[bufsz];
-            string data;
-            FILE *file = fopen(fpath.c_str(), "rt");
-            while (!feof(file)) {
-                size_t n = fread(buf, 1, bufsz, file);
-                data.append(buf, n);
-            }
-            fclose(file);
-            res->end(data);
-        } else {
-            res->writeStatus(HTTP_404);
-            res->writeHeader("Content-Type", "text/html");
-            res->end("<strong style=\"font-size:x-large;\">404</strong>");
-        }
+    auto serveIndex = [](HttpResponseNoSSL *res, HttpRequest *req) {
+        serveFile(string(STATIC_FILE_DIR_PATH) + string("index.html"), res);
+    };
+
+    auto serveStatic = [](HttpResponseNoSSL *res, HttpRequest *req) {
+        serveFile(string(STATIC_FILE_DIR_PATH) +
+                      string(req->getUrl().substr(STATIC_FILE_PREFIX.size())),
+                  res);
     };
 
     uWS::App()
-        .get("/static/*", serveFile)
+        .get("/", serveIndex)
+        .get("/index.html", serveIndex)
+        .get("/static/*", serveStatic)
         .get("/task", getTask)
         .get("/task/all", getAllTask)
         .get("/task/start", startTask)
@@ -230,16 +218,19 @@ void HttpMgr::start(int cmdSock, int ioSock) {
                            },
                        .open =
                            [](uWS::WebSocket<false, true, PerWsData> *ws) {
-                               ws->getUserData()->ws = ws;
-                               HttpMgr::taskId2WsData[ws->getUserData()->taskId] =
-                                   ws->getUserData();
+                               PerWsData *userData = ws->getUserData();
+                               HttpMgr::taskWsHelper.add(userData->taskId, userData);
                            },
                        .message = [](uWS::WebSocket<false, true, PerWsData> *ws,
                                      string_view message, uWS::OpCode opcode) {},
                        .close =
                            [](uWS::WebSocket<false, true, PerWsData> *ws, int code,
                               std::string_view message) {
-                               HttpMgr::taskId2WsData.erase(ws->getUserData()->taskId);
+                               PerWsData *userData = ws->getUserData();
+                               sendCmdToTaskMgr(HttpMgr::mCmdSock,
+                                                CmdMsg{.cmdType = CmdMsg::DISABLE_REDIRECT,
+                                                       .taskId = userData->taskId});
+                               HttpMgr::taskWsHelper.remove(userData->taskId);
                            },
                    })
         .listen(PORT,
@@ -251,4 +242,18 @@ void HttpMgr::start(int cmdSock, int ioSock) {
     fmt::print("HttpMgr: http server exited, waiting websocket io data Thread\n");
     close(HttpMgr::mIOSock), close(HttpMgr::mCmdSock);
     wsThread.join();
+}
+
+bool TaskWsHelper::sendMsgOnTaskWs(int32_t taskId, const string &msg) {
+    lock_guard<mutex> guard(lock);
+    bool res = false;
+    if (taskId2WsData.find(taskId) != taskId2WsData.end()) {
+        try {
+            taskId2WsData[taskId]->ws->send(msg, uWS::OpCode::TEXT);
+            res = true;
+        } catch (const std::exception &e) {
+            fmt::print("ws.send msg failed, {}", e.what());
+        }
+    }
+    return res;
 }

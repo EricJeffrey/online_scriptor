@@ -4,7 +4,8 @@
 #include "event2/buffer.h"
 #include "event2/bufferevent.h"
 #include "event2/event.h"
-#include "nlohmann/json.hpp"
+
+#include "io_msg.hpp"
 
 #include <array>
 #include <map>
@@ -32,33 +33,6 @@ struct IOMgr {
     static void putToStdin(int fd, const string &buf);
 };
 
-enum IOMsgType {
-    ADD_FD,
-    REMOVE_FD,
-    ENABLE_FD_REDIRECT,
-    DISABLE_FD_REDIRECT,
-    PUT_DATA_TO_FD,
-};
-
-struct IODataMsg {
-    int32_t taskId;
-    int32_t outOrErr;
-    string content;
-
-    string toJsonStr() const;
-    static IODataMsg parse(const json &);
-};
-
-struct IOEventMsg {
-    event *ev;
-    IOMsgType msgType;
-    int32_t taskId;
-    int fd;
-    // 0 stdin, 1 stdout, 2 stderr
-    int32_t fdType;
-    string content;
-};
-
 struct TaskIOFdHelper {
     struct IOData {
         int32_t mTaskId;
@@ -66,14 +40,18 @@ struct TaskIOFdHelper {
         bool mRedirectEnabled;
         bufferevent *mBev;
 
-        IOData() : mTaskId(0), mFd(0), mRedirectEnabled(false), mBev(nullptr) {}
+        IOData() : mTaskId(0), mFd(0), mRedirectEnabled(false), mBev(nullptr) {
+        }
         IOData(int32_t taskId, int fd, bufferevent *bev)
-            : mTaskId(taskId), mFd(fd), mRedirectEnabled(false), mBev(bev) {}
+            : mTaskId(taskId), mFd(fd), mRedirectEnabled(false), mBev(bev) {
+        }
     };
 
     map<int, IOData> fd2IOData;
 
-    bool hasFd(int fd) { return fd2IOData.find(fd) != fd2IOData.end(); }
+    bool hasFd(int fd) {
+        return fd2IOData.find(fd) != fd2IOData.end();
+    }
 
     // check if fd is inside, throw if not
     void throwIfNotIn(int fd) {
@@ -97,8 +75,12 @@ struct TaskIOFdHelper {
         throwIfNotIn(fd);
         fd2IOData.at(fd).mRedirectEnabled = on;
     }
-    void enableRedirect(int fd) { setRedirect(fd, true); }
-    void disableRedirect(int fd) { setRedirect(fd, false); }
+    void enableRedirect(int fd) {
+        setRedirect(fd, true);
+    }
+    void disableRedirect(int fd) {
+        setRedirect(fd, false);
+    }
 
     bool isRedirectEnabled(int fd) {
         throwIfNotIn(fd);
