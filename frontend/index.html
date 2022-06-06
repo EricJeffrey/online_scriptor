@@ -5,39 +5,276 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>在线脚本执行器</title>
+    <title>在线脚本任务管理</title>
     <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/vue2.debug.js"></script>
+    <!-- <script src="/static/index.js"></script> -->
 
 </head>
 
 <body>
-    <div class="row">
-        <div class="column" style="margin-right: 10px;">
-            <div class="row">
-                <div class="container"><input type="text" name="title" id="title" placeholder="标题"></div>
-                <div class="container" style="flex: 0;">
-                    <select name="select" id="type">
-                        <option value="Python">Python</option>
-                        <option value="Bash">Bash</option>
-                    </select>
+    <div id="msgBox" style="position: absolute; 
+                            width:calc(100% - 8px);
+                            text-align: center;
+                            font-size: large;
+                            transition: all 300ms ease;
+                            padding: 10px;
+                            background-color: #a7d2ed99;
+                            opacity: 0;">
+        xxx
+    </div>
+    <div class="Col" id="app">
+
+        <div class="row" style="margin-bottom: 20px;
+                                font-size: x-large;
+                                color: rgb(67, 121, 222);
+                                font-weight: bold;">任务管理</div>
+        <div class="row">
+            <div class="column" style="margin-right: 10px;">
+                <div class="row"><strong>添加任务</strong></div>
+                <div class="row">
+                    <div class="container">
+                        <input v-model="pendingTask.title" type="text" name="title" id="title" placeholder="标题">
+                    </div>
+                    <div class="container" style="flex: 0;">
+                        <select v-model="pendingTask.scriptType" name="select" id="type">
+                            <option value='0'>Python</option>
+                            <option value='1'>Bash</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="container">
+                    <textarea v-model="pendingTask.scriptCode" placeholder="脚本代码" name="t" id="tt" cols="30"
+                        rows="20"></textarea>
+                </div>
+                <div class="row" style="align-items: center;">
+                    <span>执行间隔秒数：</span>
+                    <div class="container">
+                        <input v-model="pendingTask.interval" type="number" name="interval" id="interval">
+                    </div>
+                </div>
+                <div class="row" style="align-items: center;">
+                    <span>最大执行次数：</span>
+                    <div class="container">
+                        <input v-model="pendingTask.maxTimes" type="number" name="interval" id="maxTimes">
+                    </div>
+                </div>
+
+                <div class="container">
+                    <button v-on:click="createTask()">添加</button>
                 </div>
             </div>
-            <div class="container"><textarea name="t" id="tt" cols="30" rows="10"></textarea></div>
-            <div class="container"><button>添加</button></div>
-        </div>
-        <div class="column" style="margin-left: 10px;">
-            <div class="container"><strong>任务列表</strong></div>
-            <list-item>
-                <div class="container" style="cursor: pointer;" onclick="window.open('/static/task.html', '_blank')">
-                    标题
+            <div class="column" style="margin-left: 10px;">
+                <div class="container"><strong>任务列表</strong></div>
+                <div class="list-item" v-for="task in taskList">
+                    <div class="container" style="cursor: pointer;" v-on:click="onTaskClick(task.id)">
+                        {{ task.title }}
+                    </div>
+                    <div class="container" nogrow>
+                        {{ task.status == 0? "未运行": "正在运行，PID:" + task.pid }}
+                    </div>
+                    <div class="container" nogrow>{{ task.interval }}</div>
+                    <div class="container" nogrow><button>
+                            {{ task.status == 0? "启动": "停止" }}
+                        </button></div>
+                    <div class="container" nogrow><button>删除</button></div>
                 </div>
-                <div class="container" nogrow>状态</div>
-                <div class="container" nogrow>间隔时间</div>
-                <div class="container" nogrow><button>启动/停止</button></div>
-                <div class="container" nogrow><button>删除</button></div>
-            </list-item>
+            </div>
         </div>
     </div>
+    <!-- Utils -->
+    <script>
+        function showMsg(msg, red) {
+            let msgBox = document.getElementById("msgBox");
+            msgBox.innerText = msg;
+            if (red) msgBox.style.color = "red";
+            else msgBox.style.color = "green";
+            msgBox.style.opacity = 1;
+            setTimeout(() => {
+                msgBox.style.opacity = 0;
+            }, 1000);
+        }
+    </script>
+    <!-- task request -->
+    <script>
+        var TaskHelper = (function () {
+
+            var CmdType2Url = [];
+
+            const GET_ALL_TASK = 0, GET_TASK = 1, START_TASK = 2,
+                STOP_TASK = 3, DELETE_TASK = 4, DISABLE_REDIRECT = 5,
+                ENABLE_REDIRECT = 6, CREATE_TASK = 7, PUT_TO_STDIN = 8;
+
+            CmdType2Url[GET_ALL_TASK] = "/task/all";
+            CmdType2Url[GET_TASK] = "/task";
+            CmdType2Url[START_TASK] = "/task/start";
+            CmdType2Url[STOP_TASK] = "/task/stop";
+            CmdType2Url[DELETE_TASK] = "/task/delete";
+            CmdType2Url[DISABLE_REDIRECT] = "/task/ioredirect/disable";
+            CmdType2Url[ENABLE_REDIRECT] = "/task/ioredirect/enable";
+            CmdType2Url[CREATE_TASK] = "/task/create";
+            CmdType2Url[PUT_TO_STDIN] = "/task/puttostdin";
+
+
+            const CmdResType2Str = [
+                "OK", "任务未运行", "任务未找到",
+                "任务正在运行", "失败", "无效的任务类型"
+            ];
+
+            function handleFetch(fetchRes) {
+                return fetchRes.then((resp) => {
+                    if (resp.ok) return resp.json();
+                    else throw resp.status + " " + resp.statusText;
+                });
+            }
+
+
+            function taskOpImpl(cmdType, taskId) {
+                return handleFetch(fetch(CmdType2Url[cmdType] + "?taskId=" + taskId));
+            };
+
+            function getAllTask() { return handleFetch(fetch(CmdType2Url[GET_ALL_TASK])); };
+            function getTask(taskId) { return taskOpImpl(GET_TASK, taskId); }
+            function startTask(taskId) { return taskOpImpl(START_TASK, taskId); }
+            function stopTask(taskId) { return taskOpImpl(STOP_TASK, taskId); }
+            function deleteTask(taskId) { return taskOpImpl(DELETE_TASK, taskId); }
+            function disableRedirect(taskId) { return taskOpImpl(DISABLE_REDIRECT, taskId); }
+            function enableRedirect(taskId) { return taskOpImpl(ENABLE_REDIRECT, taskId); }
+            function createTask(title, scriptCode, scriptType, interval, maxTimes) {
+                return handleFetch(fetch(CmdType2Url[CREATE_TASK], {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        title, scriptCode, scriptType,
+                        interval, maxTimes,
+                    })
+                }));
+            };
+            function putToStdin(obj) {
+                return handleFetch(fetch(CmdType2Url[PUT_TO_STDIN], {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        taskId: obj.taskId,
+                        stdinContent: obj.stdinContent
+                    })
+                }));
+            };
+            return {
+                getAllTask, getTask, startTask, stopTask, deleteTask,
+                enableRedirect, disableRedirect, createTask, putToStdin,
+                CmdResType2Str,
+            };
+        })();
+    </script>
+    <script>
+        var app = new Vue({
+            el: '#app',
+            data: {
+                pendingTask: {
+                    title: "",
+                    scriptCode: "",
+                    scriptType: '0',
+                    interval: 0,
+                    maxTimes: 0
+                },
+                taskList: [
+                    {
+                        "exitCode": 0,
+                        "exitTimeStamp": 0,
+                        "id": 1,
+                        "intervalInSec": -1,
+                        "maxTimes": 1,
+                        "pid": 0,
+                        "scriptCode": "import time;\nfor i in range(20):\n    print('hello world: ', i, flush=True);\n    time.sleep(1)\n\nprint('over')\n",
+                        "scriptType": 0,
+                        "status": 0,
+                        "title": "hello world"
+                    },
+                    {
+                        "exitCode": 0,
+                        "exitTimeStamp": 0,
+                        "id": 2,
+                        "intervalInSec": 600,
+                        "maxTimes": 10,
+                        "pid": 0,
+                        "scriptCode": "import time;\nfor i in range(10):\n    print('hello world: ', i, flush=True);\n    time.sleep(1)\n\nprint('over')\n",
+                        "scriptType": 0,
+                        "status": 0,
+                        "title": "hello world 2"
+                    }],
+                onTaskClick: function (taskId) {
+                    window.open("/static/task.html?taskId=" + taskId, "_blank");
+                },
+                startTask: function (taskId) {
+                    TaskHelper.startTask(taskId)
+                        .then((res) => {
+                            if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
+                            else showMsg("任务启动成功");
+                            getAllTask();
+                        })
+                        .catch((reason) => {
+                            showMsg("任务启动失败: " + reason, true);
+                            getAllTask();
+                        });
+                },
+                stopTask: function (taskId) {
+                    TaskHelper.stopTask(taskId)
+                        .then((res) => {
+                            if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
+                            else showMsg("任务已停止");
+                            getAllTask();
+                        })
+                        .catch((reason) => {
+                            showMsg("停止任务失败: " + reason, true);
+                            getAllTask();
+                        });
+
+                },
+                deleteTask: function (taskId) {
+                    if (confirm("该操作会停止任务，继续？"))
+                        TaskHelper.deleteTask(taskId)
+                            .then((res) => {
+                                if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
+                                else showMsg("任务已删除");
+                                getAllTask();
+                            })
+                            .catch((reason) => {
+                                showMsg("删除任务失败: " + reason, true);
+                                getAllTask();
+                            });
+                },
+                createTask: function () {
+                    TaskHelper.createTask(
+                        pendingTask.title,
+                        pendingTask.stdinContent,
+                        Number.parseInt(pendingTask.scriptType),
+                        pendingTask.interval,
+                        pendingTask.maxTimes
+                    ).then((res) => {
+                        if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
+                        else showMsg("任务创建成功，id: " + res.taskId);
+                        getAllTask();
+                    }).catch((reason) => {
+                        showMsg("创建任务失败: " + reason, true)
+                    })
+                },
+                getAllTask: function () {
+                    TaskHelper.getAllTask()
+                        .then((res) => {
+                            this.taskList = res.taskList.sort((a, b) => {
+                                return a.id > b.id
+                            });
+                        })
+                        .catch((reason) => {
+                            showMsg("获取任务列表失败: " + reason, true);
+                        });
+
+                },
+            },
+            created: function () {
+                getAllTask();
+            }
+        });
+    </script>
 </body>
 
 </html>

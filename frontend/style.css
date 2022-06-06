@@ -33,7 +33,7 @@
     min-height: 200px;
 }
 
-list-item {
+.list-item {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
@@ -42,11 +42,11 @@ list-item {
     border-radius: 2px;
 }
 
-list-item>* {
+.list-item>* {
     margin-left: 10px;
 }
 
-list-item:hover {
+.list-item:hover {
     background-color: lightblue;
 }
 
