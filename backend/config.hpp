@@ -15,6 +15,6 @@ constexpr int PORT = 8000;
 
 constexpr string_view STATIC_FILE_PREFIX = "/static/";
 // constexpr string_view STATIC_FILE_DIR_PATH = "/data/online_scriptor_sjf/static/";
-constexpr string_view STATIC_FILE_DIR_PATH = "/home/sjf/coding/online_scriptor/misc/";
+constexpr string_view STATIC_FILE_DIR_PATH = "/home/sjf/coding/online_scriptor/frontend/";
 
 #endif // CONFIG

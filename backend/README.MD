@@ -1,5 +1,8 @@
 ## 任务管理模块
 
+FIXME getAllTask连续操作返回空列表？可能是leveldb抛出异常了
+FIXME -1 的taskId也能建立websocket？
+
 ### 外部通信套接字
 
 1. CommandSock - 同步，传递用户的 添加/启动/停止/删除/获取详细信息/重定向IO/取消重定向IO/添加到任务输入 命令到任务管理模块

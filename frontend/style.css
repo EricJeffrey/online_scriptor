@@ -21,7 +21,7 @@
     justify-content: center;
     flex: 1;
     align-self: stretch;
-    flex-basis: content;
+    flex-basis: inherit;
 }
 
 .container[nogrow] {

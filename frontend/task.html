@@ -7,35 +7,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/static/style.css">
     <title>任务详情</title>
+    <script src="/static/vue2.debug.js"></script>
+    <!-- <script src="/static/index.js"></script> -->
+    <!-- <script src="/static/taskHelper.js"></script> -->
 </head>
 
 <body>
-    <div class="column">
+    <div id="msgBox" style="position: absolute; 
+                            width:calc(100% - 8px);
+                            text-align: center;
+                            font-size: large;
+                            transition: all 300ms ease;
+                            padding: 10px;
+                            background-color: #a7d2ed99;
+                            opacity: 0;">
+        xxx
+    </div>
+    <div class="column" id="app">
         <div class="row">
             <div class="column" padding>
                 <div class="container">
                     <strong>任务详情</strong>
                 </div>
-                <div class="container">标题</div>
-                <div class="container">状态</div>
-                <div class="container">间隔时间</div>
-                <div class="container">下次运行时间</div>
                 <div class="container">
-                    <button>启动/停止</button>
+                    <textarea name="scriptCode" id="scriptCode" cols="30" rows="10"
+                        disabled>{{ task.scriptCode }}</textarea>
                 </div>
-                <div class="container">
-                    <button>删除</button>
+                <div class="row">
+                    <div class="container">标题: {{ task.title }} </div>
+                    <div class="container">状态: {{ task.status == 0 ? '未运行' : '正在运行'}} </div>
                 </div>
-            </div>
-            <div class="column" padding>
-                <div class="container">
-                    <strong>STDIN</strong>
-                </div>
-                <div class="container">
-                    <textarea name="stdin" id="stdin" cols="30" rows="10"></textarea>
-                </div>
-                <div class="container">
-                    <button>发送</button>
+                <div class="row">
+                    <div class="container">进程ID(PID): {{ task.pid }} </div>
+                    <div class="container">间隔时间: {{ (task.intervalInSec <= 0 ? '无间隔' : task.intervalInSec +'s') }}
+                            </div>
+                    </div>
+                    <div class="row">
+                        <div class="container">已执行次数: {{ task.timesExecuted }} </div>
+                        <div class="container">最大执行次数: {{ task.maxTimes }} </div>
+                    </div>
+                    <div class="row">
+                        <div class="container">退出时间: {{ task.exitTimestamp <= 0 ? '尚未运行' : (new Date(task.exitTimeStamp
+                                * 1000)).toLocaleString() }} </div>
+                                <div class="container">退出码: {{ task.exitCode }} </div>
+                        </div>
+                        <div class="row">
+                            <div class="container">
+                                <button v-on:click="task.status == 0 ? startTask(task.id): stopTask(task.id)">
+                                    {{ task.status == 0? "启动": "停止" }}
+                                </button>
+                            </div>
+                            <div class="container">
+                                <button v-on:click="deleteTask(task.id)">删除任务</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="column" padding>
+                        <div class="container">
+                            <strong>STDIN</strong>
+                        </div>
+                        <div class="container">
+                            <textarea v-model="pendingInput" name="stdin" id="stdin" cols="30" rows="18"></textarea>
+                        </div>
+                        <div class="container">
+                            <button v-on:click="putToStdin(task.id, pendingInput)">发送输入</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -44,16 +81,211 @@
                 <div class="container">
                     <strong>STDOUT</strong>
                 </div>
-                <div class="container" block></div>
+                <div class="container">
+                    <textarea name="stdout" id="stdout" cols="30" rows="18" disabled></textarea>
+                </div>
             </div>
             <div class="column" padding>
                 <div class="container">
                     <strong>STDERR</strong>
                 </div>
-                <div class="container" block></div>
+                <div class="container">
+                    <textarea name="stdout" id="stdout" cols="30" rows="18" disabled></textarea>
+                </div>
             </div>
         </div>
     </div>
+    </div>
+    <!-- Utils -->
+    <script>
+        function showMsg(msg, red) {
+            let msgBox = document.getElementById("msgBox");
+            msgBox.innerText = msg;
+            if (red) msgBox.style.color = "red";
+            else msgBox.style.color = "green";
+            msgBox.style.opacity = 1;
+            setTimeout(() => {
+                msgBox.style.opacity = 0;
+            }, 2000);
+        }
+    </script>
+    <script>
+        var TaskHelper = (function () {
+
+            var CmdType2Url = [];
+
+            const GET_ALL_TASK = 0, GET_TASK = 1, START_TASK = 2,
+                STOP_TASK = 3, DELETE_TASK = 4, DISABLE_REDIRECT = 5,
+                ENABLE_REDIRECT = 6, CREATE_TASK = 7, PUT_TO_STDIN = 8;
+
+            CmdType2Url[GET_ALL_TASK] = "/task/all";
+            CmdType2Url[GET_TASK] = "/task";
+            CmdType2Url[START_TASK] = "/task/start";
+            CmdType2Url[STOP_TASK] = "/task/stop";
+            CmdType2Url[DELETE_TASK] = "/task/delete";
+            CmdType2Url[DISABLE_REDIRECT] = "/task/ioredirect/disable";
+            CmdType2Url[ENABLE_REDIRECT] = "/task/ioredirect/enable";
+            CmdType2Url[CREATE_TASK] = "/task/create";
+            CmdType2Url[PUT_TO_STDIN] = "/task/puttostdin";
+
+
+            const CmdResType2Str = [
+                "OK", "任务未运行", "任务未找到",
+                "任务正在运行", "失败", "无效的任务类型"
+            ];
+
+            function handleFetch(fetchRes) {
+                return fetchRes.then((resp) => {
+                    if (resp.ok) return resp.json();
+                    else throw resp.status + " " + resp.statusText;
+                });
+            }
+
+
+            function taskOpImpl(cmdType, taskId) {
+                return handleFetch(fetch(CmdType2Url[cmdType] + "?taskId=" + taskId));
+            };
+
+            function getAllTask() { return handleFetch(fetch(CmdType2Url[GET_ALL_TASK])); };
+            function getTask(taskId) { return taskOpImpl(GET_TASK, taskId); }
+            function startTask(taskId) { return taskOpImpl(START_TASK, taskId); }
+            function stopTask(taskId) { return taskOpImpl(STOP_TASK, taskId); }
+            function deleteTask(taskId) { return taskOpImpl(DELETE_TASK, taskId); }
+            function disableRedirect(taskId) { return taskOpImpl(DISABLE_REDIRECT, taskId); }
+            function enableRedirect(taskId) { return taskOpImpl(ENABLE_REDIRECT, taskId); }
+            function createTask(title, scriptCode, scriptType, interval, maxTimes) {
+                return handleFetch(fetch(CmdType2Url[CREATE_TASK], {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        title, scriptCode, scriptType,
+                        interval, maxTimes,
+                    })
+                }));
+            };
+            function putToStdin(obj) {
+                return handleFetch(fetch(CmdType2Url[PUT_TO_STDIN], {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        taskId: obj.taskId,
+                        stdinContent: obj.stdinContent
+                    })
+                }));
+            };
+            return {
+                getAllTask, getTask, startTask, stopTask, deleteTask,
+                enableRedirect, disableRedirect, createTask, putToStdin,
+                CmdResType2Str,
+            };
+        })();
+    </script>
+    <script>
+        var app = new Vue({
+            el: '#app',
+            data: {
+                pendingInput: "",
+                task: {
+                    id: -1,
+                    title: "",
+                    scriptCode: "",
+                    scriptType: 0,
+                    status: 0,
+                    pid: 0,
+                    intervalInSec: 0,
+                    maxTimes: 0,
+                    timesExecuted: 0,
+                    exitCode: 0,
+                    exitTimeStamp: 0,
+                },
+
+                startTask: function (taskId) {
+                    TaskHelper.startTask(taskId)
+                        .then((res) => {
+                            if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
+                            else showMsg("任务启动成功");
+                        })
+                        .catch((reason) => {
+                            showMsg("任务启动失败: " + reason, true);
+                        })
+                        .then(() => this.getTask(taskId));
+                },
+                stopTask: function (taskId) {
+                    TaskHelper.stopTask(taskId)
+                        .then((res) => {
+                            if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
+                            else showMsg("任务已停止");
+                        })
+                        .catch((reason) => {
+                            showMsg("停止任务失败: " + reason, true);
+                        })
+                        .then(() => this.getTask(taskId));
+
+                },
+                deleteTask: function (taskId) {
+                    if (confirm("该操作会停止并移除任务，确认继续？"))
+                        TaskHelper.deleteTask(taskId)
+                            .then((res) => {
+                                if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
+                                else showMsg("任务已删除");
+                            })
+                            .catch((reason) => {
+                                showMsg("删除任务失败: " + reason, true);
+                            })
+                            .then(() => this.getTask(taskId));
+                },
+                // todo putToStdin/ websocket - stdout/stderr
+                putToStdin: function (taskId, stdinContent) {
+                    TaskHelper.putToStdin({ taskId, stdinContent })
+                        .then((res) => {
+                            if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
+                            else showMsg("已添加到任务的输入");
+                        })
+                        .catch((reason) => {
+                            showMsg("添加输入失败: " + reason, true);
+                        })
+                        .then(() => this.getTask(taskId));
+                },
+                getTask: function (taskId) {
+                    return TaskHelper.getTask(this.task.id)
+                        .then((res) => {
+                            this.task = res.task;
+                        })
+                        .catch((reason) => {
+                            showMsg("获取任务信息失败: " + reason, true);
+                        });
+                },
+                openWs: function (taskId) {
+                    let ws = new WebSocket("ws://" + window.location.origin.substr(7) + "/ws?taskId=" + taskId);
+                    ws.onmessage = function (ev) {
+                        console.log(ev.data);
+                    };
+                    ws.onclose = function (ev) {
+                        showMsg("Websocket连接已断开", true);
+                        TaskHelper.disableRedirect(taskId);
+                    };
+                    ws.onopen = function (ev) {
+                        TaskHelper.enableRedirect(taskId)
+                            .then((res) => {
+                                if (res.status != 0)
+                                    showMsg("IO重定向失败: " + TaskHelper.CmdResType2Str[res.status], true)
+                                else
+                                    showMsg("IO重定向已启动");
+                            }).catch((reason) => {
+                                showMsg("IO重定向失败: " + reason, true);
+                            });
+                    }
+                }
+            },
+            created: function () {
+                this.task.id = Number.parseInt(window.location.search.substring(8));
+                this.getTask(this.task.id).then(() => { this.openWs(this.task.id); });
+                // setInterval(() => {
+                //     var ta = document.getElementById("stdout");
+                //     ta.value += "获取任务信息失败\n获取任务信息失败\n获取任务信息失败\r\n";
+                //     ta.scrollTop = ta.scrollHeight;
+                // }, 500);
+            }
+        });
+    </script>
 </body>
 
 </html>

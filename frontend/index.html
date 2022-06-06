@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/static/style.css">
     <script src="/static/vue2.debug.js"></script>
     <!-- <script src="/static/index.js"></script> -->
+    <!-- <script src="/static/taskHelper.js"></script> -->
 
 </head>
 
@@ -44,8 +45,8 @@
                     </div>
                 </div>
                 <div class="container">
-                    <textarea v-model="pendingTask.scriptCode" placeholder="脚本代码" name="t" id="tt" cols="30"
-                        rows="20"></textarea>
+                    <textarea v-model="pendingTask.scriptCode" placeholder="脚本代码" name="t" id="scriptCode" cols="30"
+                        rows="20" style="font-family: Consolas, '微软雅黑';"></textarea>
                 </div>
                 <div class="row" style="align-items: center;">
                     <span>执行间隔秒数：</span>
@@ -71,13 +72,17 @@
                         {{ task.title }}
                     </div>
                     <div class="container" nogrow>
-                        {{ task.status == 0? "未运行": "正在运行，PID:" + task.pid }}
+                        {{ makeTaskStatus(task) }}
                     </div>
                     <div class="container" nogrow>{{ task.interval }}</div>
-                    <div class="container" nogrow><button>
+                    <div class="container" nogrow>
+                        <button v-on:click="task.status == 0 ? startTask(task.id): stopTask(task.id)">
                             {{ task.status == 0? "启动": "停止" }}
-                        </button></div>
-                    <div class="container" nogrow><button>删除</button></div>
+                        </button>
+                    </div>
+                    <div class="container" nogrow>
+                        <button v-on:click="deleteTask(task.id)">删除</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -173,34 +178,50 @@
                     title: "",
                     scriptCode: "",
                     scriptType: '0',
-                    interval: 0,
-                    maxTimes: 0
+                    interval: -1,
+                    maxTimes: 1
                 },
                 taskList: [
-                    {
-                        "exitCode": 0,
-                        "exitTimeStamp": 0,
-                        "id": 1,
-                        "intervalInSec": -1,
-                        "maxTimes": 1,
-                        "pid": 0,
-                        "scriptCode": "import time;\nfor i in range(20):\n    print('hello world: ', i, flush=True);\n    time.sleep(1)\n\nprint('over')\n",
-                        "scriptType": 0,
-                        "status": 0,
-                        "title": "hello world"
-                    },
-                    {
-                        "exitCode": 0,
-                        "exitTimeStamp": 0,
-                        "id": 2,
-                        "intervalInSec": 600,
-                        "maxTimes": 10,
-                        "pid": 0,
-                        "scriptCode": "import time;\nfor i in range(10):\n    print('hello world: ', i, flush=True);\n    time.sleep(1)\n\nprint('over')\n",
-                        "scriptType": 0,
-                        "status": 0,
-                        "title": "hello world 2"
-                    }],
+                    // {
+                    //     "exitCode": 0,
+                    //     "exitTimeStamp": 0,
+                    //     "id": 1,
+                    //     "intervalInSec": -1,
+                    //     "maxTimes": 1,
+                    //     "pid": 0,
+                    //     "scriptCode": "import time;\nfor i in range(20):\n    print('hello world: ', i, flush=True);\n    time.sleep(1)\n\nprint('over')\n",
+                    //     "scriptType": 0,
+                    //     "status": 0,
+                    //     "title": "hello world"
+                    // },
+                    // {
+                    //     "exitCode": 0,
+                    //     "exitTimeStamp": 0,
+                    //     "id": 2,
+                    //     "intervalInSec": 600,
+                    //     "maxTimes": 10,
+                    //     "pid": 0,
+                    //     "scriptCode": "import time;\nfor i in range(10):\n    print('hello world: ', i, flush=True);\n    time.sleep(1)\n\nprint('over')\n",
+                    //     "scriptType": 0,
+                    //     "status": 0,
+                    //     "title": "hello world 2"
+                    // }
+                ],
+
+                makeTaskStatus: function (task) {
+                    console.log
+                    let res = "";
+                    if (task.status == 0) {
+                        res += "未运行";
+                        if (task.exitTimeStamp != 0) {
+                            res += "，退出时间: " + (new Date(task.exitTimeStamp * 1000)).toLocaleString() + "，退出码: " + task.exitCode;
+                        }
+                    } else {
+                        res += "正在运行，PID: " + task.pid;
+                    }
+                    return res;
+                },
+
                 onTaskClick: function (taskId) {
                     window.open("/static/task.html?taskId=" + taskId, "_blank");
                 },
@@ -209,11 +230,11 @@
                         .then((res) => {
                             if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
                             else showMsg("任务启动成功");
-                            getAllTask();
+                            this.getAllTask();
                         })
                         .catch((reason) => {
                             showMsg("任务启动失败: " + reason, true);
-                            getAllTask();
+                            this.getAllTask();
                         });
                 },
                 stopTask: function (taskId) {
@@ -221,38 +242,38 @@
                         .then((res) => {
                             if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
                             else showMsg("任务已停止");
-                            getAllTask();
+                            this.getAllTask();
                         })
                         .catch((reason) => {
                             showMsg("停止任务失败: " + reason, true);
-                            getAllTask();
+                            this.getAllTask();
                         });
 
                 },
                 deleteTask: function (taskId) {
-                    if (confirm("该操作会停止任务，继续？"))
+                    if (confirm("该操作会停止并移除任务，确认继续？"))
                         TaskHelper.deleteTask(taskId)
                             .then((res) => {
                                 if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
                                 else showMsg("任务已删除");
-                                getAllTask();
+                                this.getAllTask();
                             })
                             .catch((reason) => {
                                 showMsg("删除任务失败: " + reason, true);
-                                getAllTask();
+                                this.getAllTask();
                             });
                 },
                 createTask: function () {
                     TaskHelper.createTask(
-                        pendingTask.title,
-                        pendingTask.stdinContent,
-                        Number.parseInt(pendingTask.scriptType),
-                        pendingTask.interval,
-                        pendingTask.maxTimes
+                        this.pendingTask.title,
+                        this.pendingTask.scriptCode,
+                        Number.parseInt(this.pendingTask.scriptType),
+                        Number.parseInt(this.pendingTask.interval),
+                        Number.parseInt(this.pendingTask.maxTimes)
                     ).then((res) => {
                         if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
                         else showMsg("任务创建成功，id: " + res.taskId);
-                        getAllTask();
+                        this.getAllTask();
                     }).catch((reason) => {
                         showMsg("创建任务失败: " + reason, true)
                     })
@@ -271,7 +292,7 @@
                 },
             },
             created: function () {
-                getAllTask();
+                this.getAllTask();
             }
         });
     </script>

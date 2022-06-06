@@ -8,6 +8,7 @@ constexpr char TASK_KEY_SCRIPTTYPE[] = "scriptType";
 constexpr char TASK_KEY_STATUS[] = "status";
 constexpr char TASK_KEY_PID[] = "pid";
 constexpr char TASK_KEY_INTERVALINSEC[] = "intervalInSec";
+constexpr char TASK_KEY_TIMES_EXECUTED[] = "timesExecuted";
 constexpr char TASK_KEY_MAXTIMES[] = "maxTimes";
 constexpr char TASK_KEY_EXITCODE[] = "exitCode";
 constexpr char TASK_KEY_EXITTIMESTAMP[] = "exitTimeStamp";
@@ -21,6 +22,7 @@ Task::Task(const json& data) {
         status = data[TASK_KEY_STATUS].get<TaskStatus>();
         pid = data[TASK_KEY_PID].get<int32_t>();
         intervalInSec = data[TASK_KEY_INTERVALINSEC].get<int32_t>();
+	timesExecuted = data[TASK_KEY_TIMES_EXECUTED].get<int32_t>();
         maxTimes = data[TASK_KEY_MAXTIMES].get<int32_t>();
         exitCode = data[TASK_KEY_EXITCODE].get<int32_t>();
         exitTimeStamp = data[TASK_KEY_EXITTIMESTAMP].get<int64_t>();
@@ -36,6 +38,7 @@ json Task::toJson() const {
         {TASK_KEY_SCRIPTTYPE, scriptType},
         {TASK_KEY_STATUS, status},
         {TASK_KEY_PID, pid},
+	{TASK_KEY_TIMES_EXECUTED, timesExecuted},
         {TASK_KEY_INTERVALINSEC, intervalInSec},
         {TASK_KEY_MAXTIMES, maxTimes},
         {TASK_KEY_EXITCODE, exitCode},
