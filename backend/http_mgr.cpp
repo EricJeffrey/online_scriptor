@@ -216,8 +216,8 @@ void HttpMgr::start(int cmdSock, int ioSock) {
         .get("/task/start", startTask)
         .get("/task/stop", stopTask)
         .get("/task/delete", deleteTask)
-        .get("/task/ioredirect/disable", enableIORedirect)
-        .get("/task/ioredirect/enable", disableIORedirect)
+        .get("/task/ioredirect/disable", disableIORedirect)
+        .get("/task/ioredirect/enable", enableIORedirect)
         .post("/task/create", createTask)
         .post("/task/puttostdin", putToStdin)
         .ws<PerWsData>(

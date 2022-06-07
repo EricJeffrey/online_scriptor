@@ -90,7 +90,7 @@
                     <strong>STDERR</strong>
                 </div>
                 <div class="container">
-                    <textarea name="stdout" id="stdout" cols="30" rows="18" disabled></textarea>
+                    <textarea name="stderr" id="stderr" cols="30" rows="18" disabled></textarea>
                 </div>
             </div>
         </div>
@@ -232,7 +232,6 @@
                             })
                             .then(() => this.getTask(taskId));
                 },
-                // todo putToStdin/ websocket - stdout/stderr
                 putToStdin: function (taskId, stdinContent) {
                     TaskHelper.putToStdin({ taskId, stdinContent })
                         .then((res) => {
@@ -256,11 +255,16 @@
                 openWs: function (taskId) {
                     let ws = new WebSocket("ws://" + window.location.origin.substr(7) + "/ws?taskId=" + taskId);
                     ws.onmessage = function (ev) {
-                        console.log(ev.data);
+                        let data = JSON.parse(ev.data)
+                        console.log(data);
+                        let ta = document.getElementById((data.outOrError == 0 ? "stdout" : "stderr"));
+                        ta.value += data.content;
+                        if (ta.value.length >= 15000)
+                            ta.value = "".substr(10000);
+                        ta.scrollTop = ta.scrollHeight;
                     };
                     ws.onclose = function (ev) {
                         showMsg("Websocket连接已断开", true);
-                        TaskHelper.disableRedirect(taskId);
                     };
                     ws.onopen = function (ev) {
                         TaskHelper.enableRedirect(taskId)
@@ -276,13 +280,10 @@
                 }
             },
             created: function () {
-                this.task.id = Number.parseInt(window.location.search.substring(8));
+                this.task.id = Number.parseInt(window.location.search.substr(8));
+                console.log(window.location.search)
+                console.log(this.task.id)
                 this.getTask(this.task.id).then(() => { this.openWs(this.task.id); });
-                // setInterval(() => {
-                //     var ta = document.getElementById("stdout");
-                //     ta.value += "获取任务信息失败\n获取任务信息失败\n获取任务信息失败\r\n";
-                //     ta.scrollTop = ta.scrollHeight;
-                // }, 500);
             }
         });
     </script>

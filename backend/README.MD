@@ -2,6 +2,7 @@
 
 FIXME getAllTask连续操作返回空列表？可能是leveldb抛出异常了
 FIXME -1 的taskId也能建立websocket？
+FIXME Error: Cork buffer must not be acquired without checking canCork! ？？？
 
 ### 外部通信套接字
 
