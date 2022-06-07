@@ -38,28 +38,25 @@ int HttpMgr::mCmdSock = 0;
 CmdRes awaitTaskMgrRes(int fd, const CmdMsg &msg) {
     BufferHelper::writeOne(fd, msg.toJson());
     return CmdRes::parse(BufferHelper::readOne(fd));
-
-    // mock
-    // usleep(10000);
-    // return CmdRes{.status = CmdRes::OK};
 }
 
 void writeHttpResp(HttpResponseNoSSL *res, const CmdRes &cmdRes, string_view status = HTTP_200) {
-    res->writeStatus(status);
-    res->end(cmdRes.toJsonStr());
+    res->cork([res, cmdRes, status]() { res->writeStatus(status)->end(cmdRes.toJsonStr()); });
 }
 
-// find taskId in query paramter, write HTTP_400 if not found
+// find taskId in query paramter, write HTTP_400 if not found or less than 1
 optional<int32_t> checkTaskId(HttpResponseNoSSL *res, HttpRequest *req) {
     string_view taskIdParam = req->getQuery(HTTP_KEY_TASK_ID);
     try {
-        if (!taskIdParam.empty())
-            return stoi(string(taskIdParam));
-        else
-            writeHttpResp(res, CmdRes{.status = CmdRes::FAILED}, HTTP_400);
-    } catch (std::exception &) {
-        writeHttpResp(res, CmdRes{.status = CmdRes::FAILED}, HTTP_400);
+        if (!taskIdParam.empty()) {
+            int32_t taskId = stoi(string(taskIdParam));
+            if (taskId > 0)
+                return taskId;
+        }
+    } catch (std::exception &e) {
+        fmt::print("__DEBUG, checkTaskId failed: {}\n", e.what());
     }
+    writeHttpResp(res, CmdRes{.status = CmdRes::FAILED}, HTTP_400);
     return std::nullopt;
 }
 
@@ -121,9 +118,9 @@ void HttpMgr::start(int cmdSock, int ioSock) {
         res->onData([res, bufPtr](string_view data, bool isLast) {
             bufPtr->append(data);
             if (isLast) {
-                json reqBody = json::parse(*bufPtr);
                 CmdRes cmdRes{.status = CmdRes::FAILED};
                 try {
+                    json reqBody = json::parse(*bufPtr);
                     cmdRes = awaitTaskMgrRes(
                         HttpMgr::mCmdSock,
                         CmdMsg{
@@ -134,10 +131,13 @@ void HttpMgr::start(int cmdSock, int ioSock) {
                             .interval = reqBody[HTTP_KEY_INTERVAL].get<int32_t>(),
                             .maxTimes = reqBody[HTTP_KEY_MAX_TIMES].get<int32_t>(),
                         });
-                    writeHttpResp(res, cmdRes);
                 } catch (const json::exception &e) {
-                    writeHttpResp(res, cmdRes, HTTP_400);
+                    fmt::print("__DEBUG, createTask.onData, json exception: {}\n", e.what());
                 }
+                if (cmdRes.status == CmdRes::FAILED)
+                    writeHttpResp(res, cmdRes, HTTP_400);
+                else
+                    writeHttpResp(res, cmdRes);
                 delete bufPtr;
             }
         });
@@ -175,9 +175,9 @@ void HttpMgr::start(int cmdSock, int ioSock) {
         res->onData([res, bufPtr](string_view data, bool isLast) {
             bufPtr->append(data);
             if (isLast) {
-                json reqBody = json::parse(*bufPtr);
                 CmdRes cmdRes{.status = CmdRes::FAILED};
                 try {
+                    json reqBody = json::parse(*bufPtr);
                     cmdRes = awaitTaskMgrRes(
                         HttpMgr::mCmdSock,
                         CmdMsg{
@@ -185,10 +185,13 @@ void HttpMgr::start(int cmdSock, int ioSock) {
                             .taskId = reqBody[HTTP_KEY_TASK_ID].get<int32_t>(),
                             .stdinContent = reqBody[HTTP_KEY_STDIN_CONTENT].get<string>(),
                         });
-                    writeHttpResp(res, cmdRes);
                 } catch (const json::exception &e) {
-                    writeHttpResp(res, cmdRes, HTTP_400);
+                    fmt::print("__DEBUG putToStdin.onData, json exception: {}\n", e.what());
                 }
+                if (cmdRes.status == CmdRes::FAILED)
+                    writeHttpResp(res, cmdRes, HTTP_400);
+                else
+                    writeHttpResp(res, cmdRes);
                 delete bufPtr;
             }
         });
@@ -226,7 +229,8 @@ void HttpMgr::start(int cmdSock, int ioSock) {
                        .sendPingsAutomatically = true,
                        .upgrade =
                            [](uWS::HttpResponse<false> *res, uWS::HttpRequest *req, auto *context) {
-                               fmt::print("Handle websocket\n");
+                               fmt::print("Handler websocket\n");
+                               // FIXME maybe check if task is running here?
                                auto taskIdOpt = checkTaskId(res, req);
                                if (taskIdOpt.has_value()) {
                                    int32_t taskId = taskIdOpt.value();
@@ -241,7 +245,6 @@ void HttpMgr::start(int cmdSock, int ioSock) {
                            },
                        .open =
                            [](uWS::WebSocket<false, true, PerWsData> *ws) {
-                               // FIXME maybe check if task is running here?
                                PerWsData *userData = ws->getUserData();
                                userData->ws = ws;
                                fmt::print("Websocket established, taskId: {}\n", userData->taskId);
@@ -253,10 +256,9 @@ void HttpMgr::start(int cmdSock, int ioSock) {
                            [](uWS::WebSocket<false, true, PerWsData> *ws, int code,
                               std::string_view message) {
                                PerWsData *userData = ws->getUserData();
-                               BufferHelper::writeOne(HttpMgr::mCmdSock,
-                                                      CmdMsg{.cmdType = CmdMsg::DISABLE_REDIRECT,
-                                                             .taskId = userData->taskId}
-                                                          .toJson());
+                               awaitTaskMgrRes(HttpMgr::mCmdSock,
+                                               CmdMsg{.cmdType = CmdMsg::DISABLE_REDIRECT,
+                                                      .taskId = userData->taskId});
                                HttpMgr::taskWsHelper.remove(userData->taskId);
                            },
                    })
@@ -276,6 +278,7 @@ bool TaskWsHelper::sendMsgOnTaskWs(int32_t taskId, const string &msg) {
     bool res = false;
     if (taskId2WsData.find(taskId) != taskId2WsData.end()) {
         try {
+            // FIXME Error: Cork buffer must not be acquired without checking canCork! ？？？
             taskId2WsData[taskId]->ws->send(msg, uWS::OpCode::TEXT);
             res = true;
         } catch (const std::exception &e) {

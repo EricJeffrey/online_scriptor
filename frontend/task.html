@@ -246,6 +246,7 @@
                 getTask: function (taskId) {
                     return TaskHelper.getTask(this.task.id)
                         .then((res) => {
+                            console.log("TaskHelper.getTask return", res);
                             this.task = res.task;
                         })
                         .catch((reason) => {
@@ -283,7 +284,10 @@
                 this.task.id = Number.parseInt(window.location.search.substr(8));
                 console.log(window.location.search)
                 console.log(this.task.id)
-                this.getTask(this.task.id).then(() => { this.openWs(this.task.id); });
+                this.getTask(this.task.id).then(() => {
+                    console.log("this.getTask return");
+                    this.openWs(this.task.id);
+                });
             }
         });
     </script>
