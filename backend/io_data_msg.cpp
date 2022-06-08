@@ -6,10 +6,12 @@ constexpr char IODATAMSG_KEY_OUT_OR_ERROR[] = "outOrError";
 
 string IODataMsg::toJsonStr() const {
     return json::object({
-        {IODATAMSG_KEY_TASK_ID, taskId},
-        {IODATAMSG_KEY_CONTENT, content},
-        {IODATAMSG_KEY_OUT_OR_ERROR, outOrErr},
-    }).dump();
+                            {IODATAMSG_KEY_TASK_ID, taskId},
+                            {IODATAMSG_KEY_CONTENT, content},
+                            {IODATAMSG_KEY_OUT_OR_ERROR, outOrErr},
+                        })
+        // ignore - ignore invalid-utf8 characters
+        .dump(-1, ' ', false, nlohmann::detail::error_handler_t::ignore);
 }
 
 IODataMsg IODataMsg::parse(const json &jsonStr) {

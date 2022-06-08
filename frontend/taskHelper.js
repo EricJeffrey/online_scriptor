@@ -47,7 +47,10 @@ var TaskHelper = (function () {
             body: JSON.stringify({
                 title, scriptCode, scriptType,
                 interval, maxTimes,
-            })
+            }),
+            headers: {
+                'Content-Type': 'application/json;charset=utf-8;'
+            }
         }));
     };
     function putToStdin(obj) {
@@ -56,7 +59,10 @@ var TaskHelper = (function () {
             body: JSON.stringify({
                 taskId: obj.taskId,
                 stdinContent: obj.stdinContent
-            })
+            }),
+            headers: {
+                'Content-Type': 'application/json;charset=utf-8;'
+            }
         }));
     };
     return {

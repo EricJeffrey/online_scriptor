@@ -178,13 +178,13 @@ void HttpMgr::start(int cmdSock, int ioSock) {
                 CmdRes cmdRes{.status = CmdRes::FAILED};
                 try {
                     json reqBody = json::parse(*bufPtr);
-                    cmdRes = awaitTaskMgrRes(
-                        HttpMgr::mCmdSock,
-                        CmdMsg{
-                            .cmdType = CmdMsg::PUT_TO_STDIN,
-                            .taskId = reqBody[HTTP_KEY_TASK_ID].get<int32_t>(),
-                            .stdinContent = reqBody[HTTP_KEY_STDIN_CONTENT].get<string>(),
-                        });
+                    cmdRes = awaitTaskMgrRes(HttpMgr::mCmdSock,
+                                             CmdMsg{
+                                                 .cmdType = CmdMsg::PUT_TO_STDIN,
+                                                 .taskId = reqBody[HTTP_KEY_TASK_ID].get<int32_t>(),
+                                                 .stdinContent = std::move(
+                                                     reqBody[HTTP_KEY_STDIN_CONTENT].get<string>()),
+                                             });
                 } catch (const json::exception &e) {
                     fmt::print("__DEBUG putToStdin.onData, json exception: {}\n", e.what());
                 }
@@ -225,12 +225,12 @@ void HttpMgr::start(int cmdSock, int ioSock) {
         .post("/task/puttostdin", putToStdin)
         .ws<PerWsData>(
             "/ws", uWS::App::WebSocketBehavior<PerWsData>{
-                       .idleTimeout = 16,
-                       .sendPingsAutomatically = true,
+                       .idleTimeout = 120,
+                       // BUG uwebsocket 是单线程的
+                       .sendPingsAutomatically = false,
                        .upgrade =
                            [](uWS::HttpResponse<false> *res, uWS::HttpRequest *req, auto *context) {
                                fmt::print("Handler websocket\n");
-                               // FIXME maybe check if task is running here?
                                auto taskIdOpt = checkTaskId(res, req);
                                if (taskIdOpt.has_value()) {
                                    int32_t taskId = taskIdOpt.value();
@@ -250,18 +250,20 @@ void HttpMgr::start(int cmdSock, int ioSock) {
                                fmt::print("Websocket established, taskId: {}\n", userData->taskId);
                                HttpMgr::taskWsHelper.add(userData->taskId, userData);
                            },
+                       // BUG uwebsocket 是单线程的，所以客户端不能发送消息，否则可能会崩！
                        .message = [](uWS::WebSocket<false, true, PerWsData> *ws,
                                      string_view message, uWS::OpCode opcode) {},
                        .close =
                            [](uWS::WebSocket<false, true, PerWsData> *ws, int code,
                               std::string_view message) {
                                PerWsData *userData = ws->getUserData();
+                               HttpMgr::taskWsHelper.remove(userData->taskId);
                                awaitTaskMgrRes(HttpMgr::mCmdSock,
                                                CmdMsg{.cmdType = CmdMsg::DISABLE_REDIRECT,
                                                       .taskId = userData->taskId});
-                               HttpMgr::taskWsHelper.remove(userData->taskId);
                            },
                    })
+                   
         .listen(PORT,
                 [](us_listen_socket_t *listenSock) {
                     if (listenSock)
@@ -278,7 +280,6 @@ bool TaskWsHelper::sendMsgOnTaskWs(int32_t taskId, const string &msg) {
     bool res = false;
     if (taskId2WsData.find(taskId) != taskId2WsData.end()) {
         try {
-            // FIXME Error: Cork buffer must not be acquired without checking canCork! ？？？
             taskId2WsData[taskId]->ws->send(msg, uWS::OpCode::TEXT);
             res = true;
         } catch (const std::exception &e) {

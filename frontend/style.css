@@ -26,6 +26,7 @@
 
 .container[nogrow] {
     flex-grow: 0;
+    flex-basis: content;
 }
 
 .container[block] {
