@@ -49,6 +49,6 @@ bool endsWith(const string &s, const string &target) {
 string curTimeStr() {
     std::time_t currenttime = std::time(0);
     char tAll[255] = {};
-    std::strftime(tAll, sizeof(tAll), "%Y-%m-%d-%H-%M-%S", std::localtime(&currenttime));
+    std::strftime(tAll, sizeof(tAll), "%Y-%m-%d %H:%M:%S", std::localtime(&currenttime));
     return tAll;
 }
