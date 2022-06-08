@@ -1,6 +1,6 @@
 #include "http_mgr.hpp"
 #include "task_mgr.hpp"
-#include "test_task_mgr.hpp"
+#include "util.hpp"
 
 #include "fmt/format.h"
 
@@ -17,7 +17,7 @@ static int ioSocks[2] = {};
 
 void sigHandler(int signum) {
     if (signum == SIGINT) {
-        fmt::print("\nShutting down\n");
+        println("\nShutting down");
         for (auto &&fd : cmdSocks)
             if (fd != 0)
                 close(fd);
@@ -31,7 +31,7 @@ void sigHandler(int signum) {
 int main(int argc, char const *argv[]) {
     signal(SIGINT, sigHandler);
 
-    fmt::print("Initializing socks\n");
+    println("Initializing socks");
     assert(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, cmdSocks) != -1);
     assert(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, ioSocks) != -1);
 
@@ -44,7 +44,7 @@ int main(int argc, char const *argv[]) {
         close(cmdSocks[0]), close(ioSocks[0]);
         assert(prctl(PR_SET_PDEATHSIG, SIGKILL) != -1);
 
-        fmt::print("Starting task manager\n");
+        println("Starting task manager");
         startTaskMgr(cmdSocks[1], ioSocks[1]);
 
         exit(1);
@@ -56,14 +56,14 @@ int main(int argc, char const *argv[]) {
     char childReadyByte = 0;
     assert(read(cmdSocks[0], &childReadyByte, 1) > 0);
 
-    fmt::print("__DEBUG childPid: {}, press any key to continue.", taskMgrPid);
+    println("__DEBUG childPid: {}, press any key to continue.", taskMgrPid);
     getchar();
 
-    fmt::print("Starting http manager\n");
-    HttpMgr::start(cmdSocks[0], ioSocks[0]);
+    println("Starting http/websocket manager");
+    startHttpWsMgr(cmdSocks[0], ioSocks[0]);
 
     close(cmdSocks[0]), close(ioSocks[0]);
     wait(nullptr);
-    fmt::print("All components down, exiting.\n");
+    println("All components down, exiting.");
     return 0;
 }

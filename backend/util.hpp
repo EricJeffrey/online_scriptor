@@ -4,58 +4,39 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <stdexcept>
 #include <string>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "fmt/compile.h"
+#include "fmt/core.h"
+
 using std::string, std::runtime_error;
 
-inline void writeN(int fd, const char *data, int32_t n) {
-    ssize_t nWritten = 0;
-    while (nWritten < n) {
-        ssize_t res = write(fd, data + nWritten, n - nWritten);
-        if (res == -1 && errno != EINTR)
-            throw runtime_error("writeN: write failed!" + string(strerror(errno)));
-        nWritten += res;
-    }
+string curTimeStr();
+
+template <typename... Args> void println(fmt::format_string<Args...> format, const Args &...args) {
+    fmt::print(format, args...);
+    std::putc('\n', stdout);
 }
-inline void readN(int fd, char *buf, int32_t n) {
-    ssize_t nRead = 0;
-    while (nRead < n) {
-        ssize_t res = read(fd, buf + nRead, n - nRead);
-        if (res == -1 && errno == EINTR)
-            continue;
-        if (res == -1)
-            throw runtime_error("readN: read failed! " + string(strerror(errno)));
-        nRead += res;
-    }
+
+template <typename... Args>
+void printlnTime(fmt::format_string<Args...> format, const Args &...args) {
+    fmt::print("[{}] ", curTimeStr());
+    fmt::print(format, args...);
+    std::putc('\n', stdout);
 }
+
+void writeN(int fd, const char *data, int32_t n);
+
+void readN(int fd, char *buf, int32_t n);
 
 // check if filePath exist and is regular file
-inline bool filePathOk(const string &filePath) {
-    struct stat statBuf;
-    bool res = true;
-    if (stat(filePath.c_str(), &statBuf) == -1)
-        res = false;
-    if (!S_ISREG(statBuf.st_mode))
-        res = false;
-    return res;
-}
+bool filePathOk(const string &filePath);
 
-inline bool endsWith(const string &s, const string &target) {
-    bool res = true;
-    if (s.size() >= target.size()) {
-        for (size_t i = 0; i < target.size(); i++)
-            if (s[s.size() - target.size() + i] != target[i]) {
-                res = false;
-                break;
-            }
-    } else {
-        res = false;
-    }
-    return res;
-}
+bool endsWith(const string &s, const string &target);
 
 #endif // UTIL

@@ -1,9 +1,11 @@
 [requires]
-uwebsockets/20.14.0
 libevent/2.1.12
 nlohmann_json/3.10.5
+openssl/1.1.1n
 leveldb/1.23
 fmt/8.1.1
+websocketpp/0.8.2
+cpp-httplib/0.10.7
 
 [generators]
 cmake

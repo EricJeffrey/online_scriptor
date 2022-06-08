@@ -7,6 +7,7 @@
 
 #include "buffer_helper.hpp"
 #include "io_mgr.hpp"
+#include "util.hpp"
 
 #include <cassert>
 #include <cstring>
@@ -20,7 +21,7 @@ bufferevent *IOMgr::bevIOSock = nullptr;
 
 void onIOSockEventCb(bufferevent *bev, short events, void *arg) {
     if (events & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) {
-        fmt::print("Error or EOF on IOSock, shutting down IOMgr\n");
+        printlnTime("Error or EOF on IOSock, shutting down IOMgr");
         bufferevent_free(bev);
         event_base_loopexit((event_base *)(arg), nullptr);
         IOMgr::base = nullptr;
@@ -61,7 +62,7 @@ void fdReadDelegate(bufferevent *bev, int outOrError) {
 
         int32_t res = bufferevent_write(IOMgr::bevIOSock, data.data(), data.size());
         if (res == -1)
-            fmt::print("IOMgr: bufferevent_write failed! ioSock is probably dead\n");
+            printlnTime("IOMgr: bufferevent_write failed! ioSock is probably dead");
     }
 }
 
@@ -69,7 +70,7 @@ void onOutFdReadCb(bufferevent *bev, void *arg) { fdReadDelegate(bev, 0); }
 
 void onFdEventCb(bufferevent *bev, short events, void *arg) {
     if (events & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) {
-        fmt::print("IOMgr: EOF or ERROR on fd {}\n", bufferevent_getfd(bev));
+        printlnTime("IOMgr: EOF or ERROR on fd {}", bufferevent_getfd(bev));
         bufferevent_free(bev);
     }
 }
@@ -113,12 +114,12 @@ void onMsgEventCb(evutil_socket_t, short events, void *arg) {
                 if (n == -1) {
                     int tmpErrno = errno;
                     if (tmpErrno == EWOULDBLOCK || tmpErrno == EAGAIN) {
-                        fmt::print("IOMgr put data to stdin, task is not reading, dropped\n");
+                        printlnTime("IOMgr put data to stdin, task is not reading, dropped");
                         break;
                     } else if (tmpErrno == EINTR) {
                         continue;
                     } else {
-                        fmt::print("IOMgr put data to stdin, write to task stdin failed {}\n",
+                        printlnTime("IOMgr put data to stdin, write to task stdin failed {}",
                                    strerror(tmpErrno));
                         break;
                     }

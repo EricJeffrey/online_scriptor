@@ -76,7 +76,7 @@
                 <div class="row">
                     <div class="container"><strong>STDOUT</strong></div>
                     <div class="container" nogrow>
-                        {{ this.status.redirecting ? "IO重定向中" : "IO重定向已关闭" }}
+                        {{ redirecting ? "IO重定向中" : "IO重定向已关闭" }}
                     </div>
                 </div>
                 <div class="container">
@@ -110,7 +110,7 @@
         var app = new Vue({
             el: '#app',
             data: {
-                status: { redirecting: false },
+                redirecting: false ,
                 pendingInput: "",
                 task: {
                     id: -1,
@@ -132,7 +132,7 @@
                             if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
                             else {
                                 showMsg("任务启动成功");
-                                if (this.status.redirecting == false) this.openWs(taskId);
+                                if (this.redirecting == false) this.openWs(taskId);
                             }
                         })
                         .catch((reason) => {
@@ -168,6 +168,7 @@
                             .then(() => this.getTask(taskId));
                 },
                 putToStdin: function (taskId, stdinContent) {
+                    stdinContent += '\n';
                     TaskHelper.putToStdin({ taskId, stdinContent })
                         .then((res) => {
                             if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
@@ -191,7 +192,7 @@
                         });
                 },
                 openWs: function (taskId) {
-                    let ws = new WebSocket("ws://" + window.location.origin.substr(7) + "/ws?taskId=" + taskId);
+                    let ws = new WebSocket("ws://" + window.location.hostname + ":8001/ws?taskId=" + taskId);
                     ws.onmessage = function (ev) {
                         let data = JSON.parse(ev.data)
                         let ta = document.getElementById((data.outOrError == 0 ? "stdout" : "stderr"));
@@ -201,18 +202,18 @@
                         ta.scrollTop = ta.scrollHeight;
                     };
                     ws.onclose = function (ev) {
-                        this.status.redirecting = false;
+                        this.redirecting = false;
                         showMsg("Websocket连接已断开", true);
                     };
                     ws.onopen = function (ev) {
                         TaskHelper.enableRedirect(taskId)
                             .then((res) => {
                                 if (res.status != 0) {
-                                    this.status.redirecting = false;
+                                    this.redirecting = false;
                                     showMsg("IO重定向失败: " + TaskHelper.CmdResType2Str[res.status], true)
                                 }
                                 else {
-                                    this.status.redirecting = true;
+                                    this.redirecting = true;
                                     showMsg("IO重定向已启动");
                                 }
                             }).catch((reason) => {

@@ -9,6 +9,7 @@
 #include "io_mgr.hpp"
 #include "script_helper.hpp"
 #include "task_db_helper.hpp"
+#include "util.hpp"
 
 #include "fmt/core.h"
 
@@ -174,13 +175,13 @@ void handleCmdMsg(const CmdMsg &msg) {
             resMsg.status = CmdRes::Type::OK;
             break;
         default:
-            fmt::print("handle cmdmsg: invalid msg type, ignored\n");
+            printlnTime("handle cmdmsg: invalid msg type, ignored");
             resMsg.status = CmdRes::Type::INVALID_CMD_TYPE;
             break;
         }
         writeBackCmdRes(resMsg);
     } catch (const std::exception &e) {
-        fmt::print("Handle CmdMsg failed, {}\n", e.what());
+        printlnTime("Handle CmdMsg failed, {}", e.what());
         writeBackCmdRes(CmdRes{.status = CmdRes::Type::FAILED});
     }
 }
@@ -197,7 +198,7 @@ void onCmdSockReadCb(bufferevent *bev, void *arg) {
 
 void onCmdSockEventCb(bufferevent *bev, short events, void *arg) {
     if (events & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) {
-        fmt::print("CmdMgr: ERROR or EOF on cmdSock, shutting down CmdMgr\n");
+        printlnTime("CmdMgr: ERROR or EOF on cmdSock, shutting down CmdMgr");
         bufferevent_free(bev);
         event_base_loopexit(CmdMgr::base, nullptr);
     }
