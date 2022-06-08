@@ -71,7 +71,6 @@ void WsConnMgr::start() {
             WsConnMgr::server.close(hdl, websocketpp::close::status::invalid_subprotocol_data,
                                     "taskId is required");
         } else {
-            // TODO time + msg
             printlnTime("Websocket established, taskId: {}", taskId);
             WsConnMgr::addHandle(taskId, hdl);
         }

@@ -59,7 +59,6 @@
                         <input v-model="pendingTask.maxTimes" type="number" name="interval" id="maxTimes">
                     </div>
                 </div>
-
                 <div class="container">
                     <button v-on:click="createTask()">添加</button>
                 </div>
@@ -104,7 +103,7 @@
             el: '#app',
             data: {
                 pendingTask: {
-                    title: "",
+                    title: "未命名任务",
                     scriptCode: "",
                     scriptType: '0',
                     interval: -1,
@@ -169,6 +168,10 @@
                             });
                 },
                 createTask: function () {
+                    if (this.pendingTask.title.length <= 0 || this.pendingTask.title.length <= 0) {
+                        showMsg("标题和内容不能为空");
+                        return;
+                    }
                     TaskHelper.createTask(
                         this.pendingTask.title,
                         this.pendingTask.scriptCode,
