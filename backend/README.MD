@@ -30,4 +30,4 @@
 
 ## 后端进程/线程结构设计
 
-![proc_thr_structure](misc/proc_thr_structure.png)
+![proc_thr_structure](../misc/proc_thr_structure.png)
