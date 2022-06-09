@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/style.css">
     <title>任务详情</title>
     <script src="/static/vue2.debug.js"></script>
-    <script src="/static/vue2.release.js"></script>
+    <!-- <script src="/static/vue2.release.js"></script> -->
     <script src="/static/taskHelper.js"></script>
 </head>
 
@@ -76,8 +76,11 @@
             <div class="column" padding>
                 <div class="row">
                     <div class="container"><strong>STDOUT</strong></div>
-                    <div class="container" nogrow>
-                        {{ redirecting ? "IO重定向中" : "IO重定向已关闭" }}
+                    <div class="container" nogrow v-if="redirecting">
+                        IO重定向中
+                    </div>
+                    <div class="container" nogrow v-else>
+                        IO重定向已关闭
                     </div>
                 </div>
                 <div class="container">
@@ -108,6 +111,8 @@
         }
     </script>
     <script>
+        // TODO 完善任务停止/自动启动时IO重定向的逻辑？
+        var ws = null;
         var app = new Vue({
             el: '#app',
             data: {
@@ -133,7 +138,8 @@
                             if (res.status != 0) showMsg(TaskHelper.CmdResType2Str[res.status], true);
                             else {
                                 showMsg("任务启动成功");
-                                if (this.redirecting == false) this.openWs(taskId);
+                                if (ws != null) ws.close();
+                                this.openWs(taskId);
                             }
                         })
                         .catch((reason) => {
@@ -185,7 +191,13 @@
                     return TaskHelper.getTask(this.task.id)
                         .then((res) => {
                             if (res.task.id == -1) showMsg("未找到任务", true);
-                            else this.task = res.task;
+                            else {
+                                if (res.task.status == 0 && ws != null)  {
+                                    this.redirecting = false;
+                                    ws.close();
+                                }
+                                this.task = res.task;
+                            }
                         })
                         .catch((reason) => {
                             console.error(reason);
@@ -193,7 +205,8 @@
                         });
                 },
                 openWs: function (taskId) {
-                    let ws = new WebSocket("ws://" + window.location.hostname + ":8001/ws?taskId=" + taskId);
+                    let _this = this;
+                    ws = new WebSocket("ws://" + window.location.hostname + ":8001/ws?taskId=" + taskId);
                     ws.onmessage = function (ev) {
                         let data = JSON.parse(ev.data)
                         let ta = document.getElementById((data.outOrError == 0 ? "stdout" : "stderr"));
@@ -203,18 +216,19 @@
                         ta.scrollTop = ta.scrollHeight;
                     };
                     ws.onclose = function (ev) {
-                        this.redirecting = false;
+                        _this.redirecting = false;
                         showMsg("Websocket连接已断开", true);
                     };
                     ws.onopen = function (ev) {
                         TaskHelper.enableRedirect(taskId)
                             .then((res) => {
+                                console.log(this);
                                 if (res.status != 0) {
-                                    this.redirecting = false;
+                                    _this.redirecting = false;
                                     showMsg("IO重定向失败: " + TaskHelper.CmdResType2Str[res.status], true)
                                 }
                                 else {
-                                    this.redirecting = true;
+                                    _this.redirecting = true;
                                     showMsg("IO重定向已启动");
                                 }
                             }).catch((reason) => {
@@ -230,6 +244,9 @@
                     // make sure running
                     if (this.task.status == 1)
                         this.openWs(this.task.id);
+                    setInterval(() => {
+                        this.getTask(this.task.id);
+                    }, 5000);
                 });
             }
         });

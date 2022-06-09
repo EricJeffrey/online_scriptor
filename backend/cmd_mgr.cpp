@@ -141,9 +141,9 @@ void writeBackCmdRes(const CmdRes &cmdRes) {
     terminateIfNot(bufferevent_write(CmdMgr::bevCmdSock, data.data(), data.size()) != -1);
 }
 
-void handleCmdMsg(const CmdMsg &msg) {
+void handleCmdMsg(const CmdMsg &msg, bool doWriteBack = true) {
+    CmdRes resMsg;
     try {
-        CmdRes resMsg;
         switch (msg.cmdType) {
         case CmdMsg::Type::CREATE_TASK:
             resMsg = createTask(msg);
@@ -181,11 +181,12 @@ void handleCmdMsg(const CmdMsg &msg) {
             resMsg.status = CmdRes::Type::INVALID_CMD_TYPE;
             break;
         }
-        writeBackCmdRes(resMsg);
     } catch (const std::exception &e) {
         printlnTime("Handle CmdMsg failed, {}", e.what());
-        writeBackCmdRes(CmdRes{.status = CmdRes::Type::FAILED});
+        resMsg = CmdRes{.status = CmdRes::Type::FAILED};
     }
+    if (doWriteBack)
+        writeBackCmdRes(resMsg);
 }
 
 void onCmdSockReadCb(bufferevent *bev, void *arg) {
@@ -209,7 +210,7 @@ void onCmdSockEventCb(bufferevent *bev, short events, void *arg) {
 void onTimerEvent(evutil_socket_t, short events, void *arg) {
     CmdMsg *msg = (CmdMsg *)arg;
     if (events & EV_TIMEOUT)
-        handleCmdMsg(*msg);
+        handleCmdMsg(*msg, false);
     event *ev = CmdMgr::schedTaskHelper.remove(msg->taskId);
     if (ev != nullptr)
         event_free(ev);

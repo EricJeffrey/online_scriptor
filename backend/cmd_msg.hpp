@@ -57,6 +57,7 @@ struct CmdRes {
         INVALID_CMD_TYPE,
         _LAST
     };
+    CmdMsg::Type cmdType;
     Type status;
     int32_t taskId;
     pid_t pid;

@@ -83,6 +83,7 @@ constexpr char CMDRES_KEY_TASK_LIST[] = "taskList";
 
 json CmdRes::toJson() const {
     return json::object({
+        {CMDMSG_KEY_CMDTYPE, cmdType},
         {CMDRES_KEY_STATUS, status},
         {CMDRES_KEY_TASKID, taskId},
         {CMDRES_KEY_PID, pid},
@@ -104,5 +105,6 @@ CmdRes CmdRes::parse(const json &jsonData) {
         res.task = jsonData[CMDRES_KEY_TASK].get<Task>();
     if (jsonData.contains(CMDRES_KEY_TASK_LIST))
         res.taskList = jsonData[CMDRES_KEY_TASK_LIST].get<vector<Task>>();
+    res.cmdType = CmdMsg::Type::_LAST;
     return res;
 }
