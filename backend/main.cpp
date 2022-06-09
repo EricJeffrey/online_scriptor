@@ -1,3 +1,4 @@
+#include "config.hpp"
 #include "http_mgr.hpp"
 #include "task_mgr.hpp"
 #include "util.hpp"
@@ -31,18 +32,29 @@ void sigHandler(int signum) {
 int main(int argc, char const *argv[]) {
     signal(SIGINT, sigHandler);
 
+    println("Configuration:");
+    println("\tScript Root Path: {}", SCRIPT_ROOT_PATH);
+    println("\tDatabase Path: {}", DB_PATH);
+    println("\tPython Interpreter Path: {}", PYTHON_PATH);
+    println("\tBash Interpreter Path: {}", BASH_PATH);
+    println("\tHttp Listen Port: {}", PORT);
+    println("\tWebsocket Listen Port: {}", PORT_WS);
+    println("\tStatic File Path: {}", STATIC_FILE_DIR_PATH);
+    println("\tStatic File Url Prefix: {}", STATIC_FILE_PREFIX);
+    println("------------------------------");
+
     println("Initializing socks");
-    assert(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, cmdSocks) != -1);
-    assert(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, ioSocks) != -1);
+    terminateIfNot(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, cmdSocks) != -1);
+    terminateIfNot(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, ioSocks) != -1);
 
     pid_t taskMgrPid = fork();
-    assert(taskMgrPid != -1);
+    terminateIfNot(taskMgrPid != -1);
     // child
     if (taskMgrPid == 0) {
 
         signal(SIGINT, nullptr);
         close(cmdSocks[0]), close(ioSocks[0]);
-        assert(prctl(PR_SET_PDEATHSIG, SIGKILL) != -1);
+        terminateIfNot(prctl(PR_SET_PDEATHSIG, SIGKILL) != -1);
 
         println("Starting task manager");
         startTaskMgr(cmdSocks[1], ioSocks[1]);
@@ -54,9 +66,9 @@ int main(int argc, char const *argv[]) {
 
     // wait for child-ready notification
     char childReadyByte = 0;
-    assert(read(cmdSocks[0], &childReadyByte, 1) > 0);
+    terminateIfNot(read(cmdSocks[0], &childReadyByte, 1) > 0);
 
-    println("__DEBUG childPid: {}, press any key to continue.", taskMgrPid);
+    fmt::print("__DEBUG childPid: {}, press any key to continue.", taskMgrPid);
     getchar();
 
     println("Starting http/websocket manager");

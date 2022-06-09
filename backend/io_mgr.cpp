@@ -32,13 +32,12 @@ void IOMgr::start(int sock) {
     evutil_make_socket_closeonexec(sock);
     IOMgr::ioSock = sock;
     IOMgr::base = event_base_new();
-    assert(base != nullptr);
+    terminateIfNot(base != nullptr);
     IOMgr::bevIOSock = bufferevent_socket_new(IOMgr::base, IOMgr::ioSock, BEV_OPT_CLOSE_ON_FREE);
-    assert(IOMgr::bevIOSock != nullptr);
+    terminateIfNot(IOMgr::bevIOSock != nullptr);
     bufferevent_setcb(IOMgr::bevIOSock, nullptr, nullptr, onIOSockEventCb, IOMgr::base);
     bufferevent_enable(IOMgr::bevIOSock, EV_WRITE | EV_READ);
-    int res = event_base_loop(base, EVLOOP_NO_EXIT_ON_EMPTY);
-    assert(res != -1);
+    terminateIfNot(event_base_loop(base, EVLOOP_NO_EXIT_ON_EMPTY) != -1);
 }
 
 void fdReadDelegate(bufferevent *bev, int outOrError) {
@@ -50,7 +49,7 @@ void fdReadDelegate(bufferevent *bev, int outOrError) {
         tmpContent.append(buf, n);
     }
     int fd = bufferevent_getfd(bev);
-    assert(fd != -1);
+    terminateIfNot(fd != -1);
 
     if (IOMgr::taskIOFdHelper.isRedirectEnabled(fd)) {
         string data = BufferHelper::make(IODataMsg{
@@ -86,11 +85,10 @@ void onMsgEventCb(evutil_socket_t, short events, void *arg) {
             evutil_make_socket_nonblocking(msg->fd);
         } else {
             bev = bufferevent_socket_new(IOMgr::base, msg->fd, BEV_OPT_CLOSE_ON_FREE);
-            assert(bev != nullptr);
+            terminateIfNot(bev != nullptr);
             bufferevent_setcb(bev, (msg->fdType == 1 ? onOutFdReadCb : onErrFdReadCb), nullptr,
                               onFdEventCb, IOMgr::base);
-            int res = bufferevent_enable(bev, EV_READ);
-            assert(res != -1);
+            terminateIfNot(bufferevent_enable(bev, EV_READ) != -1);
         }
         IOMgr::taskIOFdHelper.add(msg->taskId, msg->fd, bev);
         break;
@@ -137,15 +135,14 @@ inline void addMsgEvent(IOEventMsg *msg) {
     if (IOMgr::base == nullptr)
         throw runtime_error("addMsgEvent error, event base has been shut down");
     event *ev = event_new(IOMgr::base, -1, EV_TIMEOUT, onMsgEventCb, msg);
-    assert(ev != nullptr);
+    terminateIfNot(ev != nullptr);
     msg->ev = ev;
     timeval tv{.tv_sec = 0, .tv_usec = 0};
     event_add(ev, &tv);
 }
 
 void IOMgr::addFds(int32_t taskId, array<int, 3> fds) {
-    int res = evutil_make_socket_nonblocking(fds[0]);
-    assert(res != -1);
+    terminateIfNot(evutil_make_socket_nonblocking(fds[0]) != -1);
     for (int32_t i = 0; i < 3; i++) {
         IOEventMsg *msg = new IOEventMsg{
             .msgType = IOMsgType::ADD_FD,

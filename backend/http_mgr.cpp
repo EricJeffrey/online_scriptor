@@ -21,9 +21,13 @@ constexpr char HTTP_KEY_MAX_TIMES[] = "maxTimes";
 constexpr char HTTP_KEY_STDIN_CONTENT[] = "stdinContent";
 
 int HttpConnMgr::cmdSock = 0;
+std::mutex HttpConnMgr::sockMutex;
+
+// FIXME 客户端并发的消息与CmdMgr同步的操作不兼容
 
 // send msg to TaskMgr and wait for response
 CmdRes awaitTaskMgrRes(int fd, const CmdMsg &msg) {
+    std::lock_guard<std::mutex> guard(HttpConnMgr::sockMutex);
     BufferHelper::writeOne(fd, msg.toJson());
     return CmdRes::parse(BufferHelper::readOne(fd));
 }

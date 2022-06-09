@@ -16,6 +16,13 @@
 
 using std::string, std::runtime_error;
 
+inline void terminateIfNot(bool expr) {
+    if (!expr) {
+        fmt::print("terminateIfNot: expression false!\n");
+        std::terminate();
+    }
+}
+
 string curTimeStr();
 
 template <typename... Args> void println(fmt::format_string<Args...> format, const Args &...args) {

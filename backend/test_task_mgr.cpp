@@ -39,8 +39,8 @@ void testTaskMgr() {
     signal(SIGINT, _sigHandler);
 
     fmt::print("initializing socks\n");
-    assert(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, cmdSocks) != -1);
-    assert(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, ioSocks) != -1);
+    terminateIfNot(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, cmdSocks) != -1);
+    terminateIfNot(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, ioSocks) != -1);
 
     pid_t taskMgrPid = fork();
     if (taskMgrPid == -1) {
@@ -50,7 +50,7 @@ void testTaskMgr() {
 
         signal(SIGINT, nullptr);
         close(cmdSocks[0]), close(ioSocks[0]);
-        assert(prctl(PR_SET_PDEATHSIG, SIGKILL) != -1);
+        terminateIfNot(prctl(PR_SET_PDEATHSIG, SIGKILL) != -1);
 
         fmt::print("starting task manager\n");
         startTaskMgr(cmdSocks[1], ioSocks[1]);
@@ -62,7 +62,7 @@ void testTaskMgr() {
     // wait for child-ready notification
     {
         char childOK;
-        assert(read(cmdSocks[0], &childOK, 1) > 0);
+        terminateIfNot(read(cmdSocks[0], &childOK, 1) > 0);
     }
     fmt::print("__DEBUG pid of TaskMgr is {}. Attch GDB and press enter to continue", taskMgrPid);
     getchar();

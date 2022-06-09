@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(main VERSION 0.1.0)
 
-# add_compile_definitions("CPPHTTPLIB_THREAD_POOL_COUNT=3")
+# add_compile_definitions("CPPHTTPLIB_THREAD_POOL_COUNT=1")
 add_compile_options("-std=c++17" "-Wall")
 # add_compile_definitions("TESTING_TASK_MGR")
 

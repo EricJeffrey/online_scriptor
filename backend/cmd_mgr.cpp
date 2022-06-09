@@ -50,8 +50,11 @@ CmdRes startTask(const CmdMsg &msg) {
     StartScriptRes scriptRes;
     if (task.scriptType == TaskScriptType::PYTHON)
         scriptRes = ScriptHelper::startPyScriptWithIORedir(filePath, fdsToClose);
-    if (task.scriptType == TaskScriptType::BASH)
+    else if (task.scriptType == TaskScriptType::BASH)
         scriptRes = ScriptHelper::startBashScriptWithIORedir(filePath, fdsToClose);
+    else {
+        return CmdRes{.status = CmdRes::Type::FAILED};
+    }
 
     IOMgr::addFds(task.id, {scriptRes.fdStdin, scriptRes.fdStdout, scriptRes.fdStderr});
     CmdMgr::runningTaskHelper.add(task.id, scriptRes.childPid, scriptRes.fdStdin,
@@ -135,8 +138,7 @@ CmdRes getAllTask(const CmdMsg &msg) {
 
 void writeBackCmdRes(const CmdRes &cmdRes) {
     string data = BufferHelper::make(cmdRes.toJsonStr());
-    int res = bufferevent_write(CmdMgr::bevCmdSock, data.data(), data.size());
-    assert(res != -1);
+    terminateIfNot(bufferevent_write(CmdMgr::bevCmdSock, data.data(), data.size()) != -1);
 }
 
 void handleCmdMsg(const CmdMsg &msg) {
@@ -251,21 +253,19 @@ void CmdMgr::start(int sock) {
     evutil_make_socket_closeonexec(sock);
     CmdMgr::cmdSock = sock;
     CmdMgr::base = event_base_new();
-    assert(base != nullptr);
+    terminateIfNot(base != nullptr);
 
     // read on cmdSock
     CmdMgr::bevCmdSock =
         bufferevent_socket_new(CmdMgr::base, CmdMgr::cmdSock, BEV_OPT_CLOSE_ON_FREE);
-    assert(CmdMgr::bevCmdSock != nullptr);
+    terminateIfNot(CmdMgr::bevCmdSock != nullptr);
     bufferevent_setcb(CmdMgr::bevCmdSock, onCmdSockReadCb, nullptr, onCmdSockEventCb, CmdMgr::base);
-    int res = bufferevent_enable(CmdMgr::bevCmdSock, EV_READ | EV_WRITE);
-    assert(res != -1);
+    terminateIfNot(bufferevent_enable(CmdMgr::bevCmdSock, EV_READ | EV_WRITE) != -1);
 
     // SIGCHILD
     CmdMgr::evChild = evsignal_new(CmdMgr::base, SIGCHLD, onSIGCHILDCb, CmdMgr::base);
-    assert(CmdMgr::evChild != nullptr);
-    res = evsignal_add(CmdMgr::evChild, nullptr);
-    assert(res != -1);
+    terminateIfNot(CmdMgr::evChild != nullptr);
+    terminateIfNot(evsignal_add(CmdMgr::evChild, nullptr) != -1);
 
     // write 1 byte to let the parent know we are ready to go
     {
@@ -281,8 +281,7 @@ void CmdMgr::start(int sock) {
         }
     }
 
-    res = event_base_loop(CmdMgr::base, EVLOOP_NO_EXIT_ON_EMPTY);
-    assert(res != -1);
+    terminateIfNot(event_base_loop(CmdMgr::base, EVLOOP_NO_EXIT_ON_EMPTY) != -1);
 }
 
 void CmdMgr::stop() {

@@ -1,4 +1,5 @@
 #include "cmd_msg.hpp"
+#include "util.hpp"
 
 using std::runtime_error;
 
@@ -93,7 +94,7 @@ json CmdRes::toJson() const {
 string CmdRes::toJsonStr() const { return toJson().dump(); }
 
 CmdRes CmdRes::parse(const json &jsonData) {
-    assert(jsonData.contains(CMDRES_KEY_STATUS));
+    terminateIfNot(jsonData.contains(CMDRES_KEY_STATUS));
     CmdRes res{.status = jsonData[CMDRES_KEY_STATUS].get<CmdRes::Type>()};
     if (jsonData.contains(CMDRES_KEY_TASKID))
         res.taskId = jsonData[CMDRES_KEY_TASKID].get<int32_t>();
