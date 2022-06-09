@@ -9,3 +9,6 @@ cpp-httplib/0.10.7
 
 [generators]
 cmake
+
+[options]
+websocketpp:asio=standalone
